@@ -29,30 +29,15 @@
     color:var(--texto);
   }
   header{
-    padding:2.5rem 1.5rem 1.5rem;
+    padding:2.2rem 1.5rem 1.5rem;
     text-align:center;
   }
-  .logo-espacio{
-    max-width:340px;
-    margin:0 auto 1rem;
-    border:1.5px dashed var(--lila-suave);
-    border-radius:12px;
-    padding:1.2rem;
-    background:var(--porcelana);
-  }
-  .logo-espacio p{
-    margin:0;
-    font-size:0.75rem;
-    color:var(--texto-suave);
-    line-height:1.5;
-  }
-  header h1{
-    font-family:'Fraunces',serif;
-    font-weight:500;
-    font-size:2.2rem;
-    margin:0.4rem 0 0;
-    color:var(--borgona);
-    letter-spacing:0.3px;
+  .logo-marca{
+    display:block;
+    max-width:400px;
+    width:82%;
+    margin:0 auto;
+    border-radius:14px;
   }
   header p.tagline{
     font-family:'Fraunces',serif;
@@ -60,7 +45,7 @@
     font-style:italic;
     font-size:1rem;
     color:var(--texto-suave);
-    margin:0.6rem 0 0;
+    margin:0.8rem 0 0;
   }
   header p.sub{
     font-size:0.72rem;
@@ -127,6 +112,18 @@
     display:block;
     background:var(--porcelana);
   }
+  .card .foto-vacia{
+    width:100%;
+    height:170px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--porcelana);
+    color:var(--texto-suave);
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:0.85rem;
+  }
   .card .cuerpo{padding:1rem 1.15rem 1.15rem;display:flex;flex-direction:column;flex:1;}
   .genero-tag{
     display:inline-block;
@@ -189,6 +186,10 @@
   .vacio{
     text-align:center;color:var(--texto-suave);padding:3rem 1rem;font-size:0.95rem;
   }
+  .cargando{
+    text-align:center;color:var(--texto-suave);padding:4rem 1rem;
+    font-family:'Fraunces',serif;font-style:italic;font-size:1rem;
+  }
   footer{
     text-align:center;
     padding:1.8rem 1rem 2.2rem;
@@ -203,7 +204,6 @@
   }
   footer .datos{display:flex;justify-content:center;gap:1.5rem;flex-wrap:wrap;color:var(--texto-suave);}
   @media (max-width:480px){
-    header h1{font-size:1.8rem;}
     .barra{padding:0.8rem;}
   }
 </style>
@@ -211,17 +211,14 @@
 <body>
 
 <header>
-  <div class="logo-espacio">
-    <p>Espacio reservado para el logo oficial de Letras &amp; Vinos<br>(pendiente: adjuntar el archivo maestro en PNG/SVG)</p>
-  </div>
-  <h1>Letras &amp; Vinos</h1>
+  <img class="logo-marca" src="logo.png" alt="Letras &amp; Vinos">
   <p class="tagline">Lectura en estado líquido</p>
   <p class="sub">Catálogo de libros</p>
 </header>
 
 <div class="barra">
   <input type="text" id="buscador" placeholder="Buscar por título...">
-  <select id="filtroGenero"></select>
+  <select id="filtroGenero"><option>Todos los géneros</option></select>
   <select id="orden">
     <option value="alfa">Ordenar: Título A-Z</option>
     <option value="precioAsc">Precio: menor a mayor</option>
@@ -232,7 +229,7 @@
 
 <p class="contador" id="contador"></p>
 
-<div class="grid" id="grid"></div>
+<div class="grid" id="grid"><div class="cargando">Cargando catálogo…</div></div>
 
 <footer>
   <div class="logo">Letras &amp; Vinos</div>
@@ -245,98 +242,12 @@
 
 <script>
 // ---------------------------------------------------------------------
-// DATOS DE MUESTRA: 41 libros reales extraídos del catálogo PDF actual
-// (título, género, precio, disponibilidad, sinopsis e imagen tomados
-// directamente del PDF, sin inventar). En la versión final esto se
-// reemplaza por una lectura en vivo del Google Sheet "Inventario de
-// Libros", publicado como CSV y actualizado automáticamente.
-// Las fotos están en el mismo repositorio, junto a este archivo.
+// CATÁLOGO EN VIVO: lee la pestaña "Catálogo Público" del Google Sheet
+// (publicada como CSV). Al editar el Sheet, el catálogo se actualiza
+// solo (el cambio puede tardar unos minutos en reflejarse, por el caché
+// de Google). Las fotos y el logo viven en este mismo repositorio.
 // ---------------------------------------------------------------------
-const LIBROS = [
-  {titulo:"La empleada doméstica", genero:"Thriller", precio:550, disponible:true, imagen:"la-empleada-domestica.jpg",
-   sinopsis:"Una joven con un pasado oscuro, consigue trabajo como empleada doméstica en la casa de los Winchester. Lo que parece una oportunidad perfecta pronto se convierte en una pesadilla llena de secretos y manipulaciones."},
-  {titulo:"El secreto de la empleada doméstica", genero:"Thriller", precio:600, disponible:true, imagen:"el-secreto-empleada-domestica.jpg",
-   sinopsis:"Millie intenta rehacer su vida, pero su pasado vuelve a perseguirla. La novela explora cómo los secretos ocultos pueden destruir cualquier intento de empezar de nuevo."},
-  {titulo:"La empleada doméstica: te vigila", genero:"Thriller", precio:650, disponible:true, imagen:"empleada-domestica-te-vigila.jpg",
-   sinopsis:"Millie ahora vive en una nueva casa y parece tener una vida estable, pero la tranquilidad se rompe cuando descubre que alguien la observa y conoce demasiado de su intimidad. Suspenso y paranoia marcan esta entrega."},
-  {titulo:"La boda de la empleada doméstica", genero:"Thriller", precio:290, disponible:true, imagen:"boda-empleada-domestica.jpg",
-   sinopsis:"Millie está a punto de casarse con Enzo, pero lo que debería ser el día más feliz de su vida se convierte en un relato lleno de tensión y giros inesperados que cierran la saga."},
-  {titulo:"Tras la puerta", genero:"Thriller", precio:550, disponible:true, imagen:"tras-la-puerta.jpg",
-   sinopsis:"La protagonista, Nora Davis, intenta llevar una vida normal como cirujana, pero la sombra de su padre —un asesino en serie encarcelado— amenaza con arruinar su tranquilidad cuando nuevos crímenes comienzan a aparecer."},
-  {titulo:"La paciente silenciosa", genero:"Thriller", precio:550, disponible:true, imagen:"la-paciente-silenciosa.jpg",
-   sinopsis:"La historia gira en torno a Alicia Berenson, una pintora de gran éxito que, de manera inesperada, dispara cinco veces contra su esposo Gabriel y, desde ese momento, no vuelve a pronunciar palabra alguna."},
-  {titulo:"Verity: la sombra de un engaño", genero:"Thriller", precio:530, disponible:true, imagen:"verity.jpg",
-   sinopsis:"Thriller psicológico y romántico donde una escritora, Lowen Ashleigh, descubre un manuscrito perturbador que revela secretos oscuros de Verity Crawford, una autora famosa en coma, mientras se involucra emocionalmente con su esposo."},
-  {titulo:"El psicoanalista", genero:"Thriller", precio:500, disponible:false, imagen:"el-psicoanalista.jpg",
-   sinopsis:"La trama sigue al doctor Frederick Starks, un psicoanalista que recibe una carta amenazante en su cumpleaños número 53. El antagonista le da 15 días para descubrir su identidad, o de lo contrario destruirá su vida."},
-  {titulo:"El príncipe cruel", genero:"Fantasía", precio:550, disponible:true, imagen:"principe-cruel.jpg",
-   sinopsis:"Narra la historia de Jude Duarte, una mortal que vive en la Corte Suprema del Reino Feérico, donde debe enfrentarse a intrigas, traiciones y al desprecio de los seres mágicos, especialmente del príncipe Cardan."},
-  {titulo:"El legado robado", genero:"Fantasía", precio:500, disponible:true, imagen:"legado-robado.jpg",
-   sinopsis:"Es una novela juvenil de fantasía que sigue a Suren, la joven reina fugitiva de la Corte de los Dientes, y a Oak, un príncipe reacio, en una peligrosa misión que podría destruirlos a ambos."},
-  {titulo:"El trono del prisionero", genero:"Fantasía", precio:550, disponible:true, imagen:"trono-del-prisionero.jpg",
-   sinopsis:"Narra cómo el príncipe Oak, tras una traición, es encarcelado en el helado norte bajo el dominio de una reina vengativa, y debe usar su astucia para sobrevivir mientras se debate entre el amor y la lealtad a Elfhame."},
-  {titulo:"Una corte de rosas y espinas", genero:"Fantasía", precio:650, disponible:true, imagen:"corte-rosas-espinas.jpg",
-   sinopsis:"La historia sigue a Feyre Archeron, una joven cazadora humana que mata a un lobo en el bosque sin saber que en realidad era una criatura feérica. Como castigo, es llevada al reino de los inmortales, donde descubre un mundo lleno de magia, intrigas y peligros."},
-  {titulo:"Una corte de niebla y furia", genero:"Fantasía", precio:750, disponible:true, imagen:"corte-niebla-furia.jpg",
-   sinopsis:"Feyre, marcada por la guerra y su vínculo con Tamlin, descubre en la Corte de la Noche un mundo de libertad y poder. Allí, junto a Rhysand, aprende a sanar, a reconocer su fuerza y a luchar por algo más grande que ella misma. Esta entrega es un viaje de transformación: del dolor al renacimiento, del sometimiento a la verdadera independencia, y del miedo al amor profundo."},
-  {titulo:"Una corte de alas y ruina", genero:"Fantasía", precio:750, disponible:true, imagen:"corte-alas-ruina.jpg",
-   sinopsis:"Es el tercer libro de la saga Una corte de rosas y espinas. Tras infiltrarse en la Corte Primavera, Feyre finge sumisión mientras trama su venganza contra Tamlin y sus pactos con Hybern. Con astucia y riesgo, logra escapar y regresar a Velaris, donde junto a Rhysand y la Corte Noche prepara la resistencia."},
-  {titulo:"It", genero:"Terror", precio:800, disponible:true, imagen:"it.jpg",
-   sinopsis:"La historia transcurre en Derry, Maine, un pueblo marcado por la violencia y los secretos. Allí, un grupo de niños conocido como El Club de los Perdedores enfrenta a una entidad maligna que adopta la forma de sus peores miedos, siendo su manifestación más icónica el payaso Pennywise. Años después, ya adultos, deben regresar a Derry para enfrentarse nuevamente a esa fuerza que nunca desapareció del todo."},
-  {titulo:"La milla verde", genero:"Terror", precio:550, disponible:true, imagen:"la-milla-verde.jpg",
-   sinopsis:"La historia se desarrolla en la Prisión de Cold Mountain, en el corredor de la muerte conocido como La milla verde. El narrador, Paul Edgecombe, jefe de los guardias, relata los sucesos ocurridos en 1932, cuando llega un nuevo prisionero: John Coffey, un hombre acusado de asesinar a dos niñas. Sin embargo, Coffey posee un misterioso don de sanación que pone en duda su culpabilidad y confronta a los personajes con dilemas morales y espirituales."},
-  {titulo:"Frankenstein ilustrado", genero:"Terror", precio:650, disponible:true, imagen:"frankenstein-ilustrado.jpg",
-   sinopsis:"La trama sigue a Victor Frankenstein, un joven científico obsesionado con vencer a la muerte, quien logra dar vida a una criatura hecha de restos humanos. Sin embargo, al ver el resultado, lo rechaza, desencadenando una historia de soledad, venganza y reflexión sobre la responsabilidad moral del creador frente a su obra."},
-  {titulo:"Diálogos de Platón", genero:"Clásicos", precio:700, disponible:true, imagen:"dialogos-platon.jpg",
-   sinopsis:"Son una colección fundamental de textos filosóficos escritos en forma de conversación, donde Sócrates y otros personajes discuten temas como la justicia, la virtud, el amor, el conocimiento y la organización del Estado. Son la base del pensamiento occidental y muestran cómo la filosofía se construye a través del diálogo y la búsqueda de la verdad."},
-  {titulo:"El mundo de Sofía", genero:"Clásicos", precio:450, disponible:false, imagen:"mundo-de-sofia.jpg",
-   sinopsis:"La protagonista, Sofía Amundsen, una adolescente noruega, comienza a recibir misteriosas cartas con preguntas como '¿Quién eres?' y '¿De dónde viene el mundo?'. A través de estas cartas y de un curso secreto de filosofía, Sofía recorre la historia del pensamiento desde los presocráticos hasta el existencialismo, mientras descubre un enigma que conecta su vida con la de otra joven llamada Hilde."},
-  {titulo:"El alquimista", genero:"Clásicos", precio:450, disponible:true, imagen:"el-alquimista.jpg",
-   sinopsis:"Santiago, un pastor andaluz, sueña repetidamente con un tesoro escondido junto a las pirámides de Egipto. Animado por este sueño, emprende un viaje lleno de obstáculos y aprendizajes. En su camino conoce a personajes como el rey Melquisedec, un comerciante de cristales, un inglés estudioso de la alquimia y finalmente un alquimista, quienes le enseñan lecciones sobre la fe, la perseverancia y la búsqueda de la 'Leyenda Personal'."},
-  {titulo:"El principito", genero:"Clásicos", precio:550, disponible:true, imagen:"principito.jpg",
-   sinopsis:"Un cuento que parece infantil, pero guarda las verdades más profundas de la vida. Un pequeño príncipe viaja por distintos planetas y conoce personajes que reflejan nuestras obsesiones humanas: el poder, la vanidad, la soledad. Cada encuentro es una lección disfrazada de fábula."},
-  {titulo:"Orgullo y prejuicio", genero:"Clásicos", precio:680, disponible:true, imagen:"orgullo-prejuicio.jpg",
-   sinopsis:"'Orgullo y prejuicio' es mucho más que una historia de amor: es una crítica a las convenciones sociales y un canto a la importancia de la sinceridad y la evolución personal. Su vigencia radica en que todos, en algún momento, debemos aprender a mirar más allá de las apariencias."},
-  {titulo:"Mujercitas", genero:"Clásicos", precio:700, disponible:true, imagen:"mujercitas.jpg",
-   sinopsis:"La historia sigue a las cuatro hermanas mientras enfrentan dificultades económicas y personales, guiadas por los valores de su madre, Marmee. Cada una tiene aspiraciones distintas: Meg busca estabilidad, Jo sueña con ser escritora, Beth representa la bondad y la entrega, y Amy anhela el arte y la elegancia."},
-  {titulo:"Citas de Jane Austen", genero:"Clásicos", precio:520, disponible:true, imagen:"citas-jane-austen.jpg",
-   sinopsis:"Este libro es una ventana al pensamiento de Jane Austen, donde cada cita refleja su aguda observación sobre el amor, el matrimonio, la clase social y la naturaleza humana. Con un estilo elegante y mordaz, Austen logra que sus palabras sigan siendo actuales."},
-  {titulo:"El diario de Ana Frank ilustrado", genero:"Clásicos", precio:650, disponible:true, imagen:"diario-ana-frank.jpg",
-   sinopsis:"Ana Frank, una adolescente judía, abre su corazón en un diario mientras vive escondida con su familia en Ámsterdam durante la ocupación nazi. Entre el miedo y la incertidumbre, sus páginas revelan sueños, reflexiones y una sorprendente esperanza en la bondad humana."},
-  {titulo:"Los 5 lenguajes del amor", genero:"Clásicos", precio:400, disponible:true, imagen:"5-lenguajes-del-amor.jpg",
-   sinopsis:"Chapman explica que muchas veces los conflictos en pareja no nacen de falta de amor, sino de que cada uno habla un 'idioma' diferente. Al identificar y practicar el lenguaje afectivo del otro, la conexión se fortalece y el vínculo se vuelve más profundo."},
-  {titulo:"La casa de los espíritus", genero:"Clásicos", precio:600, disponible:true, imagen:"casa-de-los-espiritus.jpg",
-   sinopsis:"Narra la vida de la familia Trueba a lo largo de varias generaciones, entrelazando amores, tragedias y secretos en un Chile convulso. Desde Clara, la mujer con dones sobrenaturales que conversa con los espíritus, hasta Esteban Trueba, un patriarca apasionado y violento, la novela muestra cómo lo extraordinario se mezcla con lo cotidiano."},
-  {titulo:"Blanca Olmedo", genero:"Clásicos", precio:525, disponible:true, imagen:"blanca-olmedo.jpg",
-   sinopsis:"La historia de una joven que, entre prejuicios y adversidades, lucha por defender su dignidad y su derecho a amar. Con un estilo apasionado y crítico, la autora expone las injusticias sociales y la fuerza de una mujer que se niega a ser silenciada."},
-  {titulo:"Meditaciones", genero:"Clásicos", precio:460, disponible:false, imagen:"meditaciones.jpg",
-   sinopsis:"Es el viaje íntimo de un emperador que, en medio del poder y el caos del mundo, busca la serenidad dentro de sí mismo. A través de reflexiones breves y poderosas, Marco Aurelio comparte pensamientos sobre la fortaleza interior, la virtud y el arte de vivir con propósito."},
-  {titulo:"Yo pude, tú puedes", genero:"Desarrollo Personal", precio:520, disponible:true, imagen:"yo-pude-tu-puedes.jpg",
-   sinopsis:"El libro es una guía práctica para entender cómo los pensamientos, emociones, palabras y acciones moldean nuestro destino en lo personal, familiar y profesional, con el objetivo de alcanzar una vida de felicidad, paz y plenitud."},
-  {titulo:"Caja de hábitos atómicos", genero:"Desarrollo Personal", precio:850, disponible:false, imagen:"caja-habitos-atomicos.jpg",
-   sinopsis:"Hábitos Atómicos: explica cómo pequeños cambios diarios pueden generar grandes transformaciones en la vida. Diario de Hábitos: funciona como un cuaderno de trabajo para aplicar las ideas del libro en la vida diaria."},
-  {titulo:"El sutil arte de que te importe una mierda", genero:"Desarrollo Personal", precio:480, disponible:true, imagen:"sutil-arte-importar-una-mierda.jpg",
-   sinopsis:"Es un libro de autoayuda poco convencional que enseña a dejar de obsesionarse con la felicidad y el éxito, y a enfocarse en lo que realmente importa, aceptando las limitaciones y fracasos como parte natural de la vida."},
-  {titulo:"La teoría Let Them", genero:"Desarrollo Personal", precio:550, disponible:true, imagen:"teoria-let-them.jpg",
-   sinopsis:"Es un libro de autoayuda que enseña a soltar el control sobre lo que los demás piensan o hacen, y a recuperar la paz interior aceptando que no podemos manejar las decisiones ajenas."},
-  {titulo:"Nuestro lugar en el mundo", genero:"Romance Juvenil", precio:500, disponible:true, imagen:"nuestro-lugar-en-el-mundo.jpg",
-   sinopsis:"La historia sigue a Nora y Luka, dos jóvenes con vidas marcadas por secretos y heridas. Nora ha construido una mentira para ocultar su realidad a sus padres, mientras Luka busca en la música un refugio para sanar tras un año difícil. El destino los obliga a compartir piso, y pronto descubren que se necesitan."},
-  {titulo:"Todos los lugares que mantuvimos en secreto", genero:"Romance Juvenil", precio:500, disponible:true, imagen:"lugares-que-mantuvimos-en-secreto.jpg",
-   sinopsis:"Maeve, atrapada en una rutina sin rumbo tras la muerte de su madre y una relación rota, decide impulsivamente regresar al pueblo de su infancia. Allí la espera Connor, su mejor amigo de la niñez, quien siempre creyó que ella volvería. Juntos emprenden un viaje lleno de aventuras y confidencias."},
-  {titulo:"Culpa vuestra", genero:"Romance Juvenil", precio:600, disponible:true, imagen:"culpa-vuestra.jpg",
-   sinopsis:"La pasión y el caos emocional se entrelazan en una historia donde amar nunca es sencillo y olvidar es imposible. Nick y Noah se enfrentan a un torbellino de sentimientos, secretos y decisiones que pueden unirlos para siempre… o destruirlos sin remedio."},
-  {titulo:"Intensamente 2: la novela", genero:"Infantil", precio:400, disponible:true, imagen:"intensamente-2.jpg",
-   sinopsis:"Riley entra a la adolescencia y, con ella, llega una avalancha de emociones nuevas que ponen su mundo interior patas arriba. Alegría, Tristeza, Furia, Temor y Desagrado deberán enfrentarse a la llegada de Ansiedad, Vergüenza, Envidia y Ennui. Una historia divertida, profunda y llena de corazón."},
-  {titulo:"La muy catastrófica visita al zoo", genero:"Infantil", precio:550, disponible:true, imagen:"catastrofica-visita-zoo.jpg",
-   sinopsis:"En víspera de Navidad, Joséphine y sus compañeros de un colegio especial enfrentan una serie de pequeños incidentes que culminan en una excursión al zoológico… y en una gran 'catástrofe'. Humor absurdo y reflexiones sobre la diversidad y la inclusión."},
-  {titulo:"Stitch: Ohana significa familia", genero:"Infantil", precio:400, disponible:false, imagen:"stitch-ohana.jpg",
-   sinopsis:"En esta historia entrañable, Stitch descubre que la familia no siempre nace del mismo lugar, sino del amor que elegimos dar. Stitch aprende lo que realmente significa ohana: estar juntos, cuidarse y nunca abandonar a quienes amamos."},
-  {titulo:"Agente Stitch: un caso lleno de baba", genero:"Infantil", precio:580, disponible:true, imagen:"agente-stitch-baba.jpg",
-   sinopsis:"Cuando un misterioso rastro de baba aparece en toda la ciudad, solo un agente es capaz de enfrentarse al caos viscoso: Stitch, el investigador más audaz —y más paciente— de la agencia. Resolver el misterio será difícil… pero evitar la baba será imposible."},
-  {titulo:"Cuentos de buenas noches para niñas rebeldes 1", genero:"Infantil", precio:600, disponible:true, imagen:"cuentos-buenas-noches-rebeldes.jpg",
-   sinopsis:"Reúne las historias reales de cien mujeres extraordinarias que cambiaron el mundo con valentía, creatividad y determinación. Cada relato transforma la hora de dormir en un viaje inspirador lleno de sueños grandes y posibilidades infinitas."},
-];
-
+const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=15425874&single=true&output=csv";
 const NUMERO_WHATSAPP = "50492461991";
 
 const grid = document.getElementById("grid");
@@ -346,8 +257,80 @@ const filtroGenero = document.getElementById("filtroGenero");
 const orden = document.getElementById("orden");
 const soloDisponibles = document.getElementById("soloDisponibles");
 
-const generos = ["Todos los géneros", ...Array.from(new Set(LIBROS.map(l=>l.genero))).sort()];
-filtroGenero.innerHTML = generos.map(g=>`<option value="${g}">${g}</option>`).join("");
+let LIBROS = [];
+
+function parseCSV(texto){
+  const filas = [];
+  let fila = [], campo = "", enComillas = false;
+  for(let i = 0; i < texto.length; i++){
+    const c = texto[i];
+    if(enComillas){
+      if(c === '"'){
+        if(texto[i+1] === '"'){ campo += '"'; i++; }
+        else enComillas = false;
+      } else campo += c;
+    } else {
+      if(c === '"') enComillas = true;
+      else if(c === ','){ fila.push(campo); campo = ""; }
+      else if(c === '\n'){ fila.push(campo); filas.push(fila); fila = []; campo = ""; }
+      else if(c !== '\r') campo += c;
+    }
+  }
+  if(campo !== "" || fila.length) { fila.push(campo); filas.push(fila); }
+  return filas;
+}
+
+function limpiarPrecio(t){
+  if(!t) return 0;
+  const m = String(t).replace(/[^0-9.,]/g,'').replace(/,/g,'');
+  const n = parseFloat(m);
+  return isNaN(n) ? 0 : n;
+}
+
+function normalizarTitulo(t){
+  return t.trim().replace(/\s+/g,' ');
+}
+
+function capitalizar(t){
+  const minusculas = ['de','del','la','las','el','los','y','a','en','que','un','una','con','no','al','tu','su','mi','para','por','se'];
+  return t.toLowerCase().split(' ').map((w,i)=>{
+    if(i>0 && minusculas.includes(w)) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(' ');
+}
+
+function procesar(filas){
+  const porTitulo = new Map();
+  for(let i = 1; i < filas.length; i++){
+    const f = filas[i];
+    if(!f || f.length < 4) continue;
+    const nombre = normalizarTitulo(f[0] || "");
+    if(!nombre) continue;
+    const clave = nombre.toUpperCase();
+    const disp = parseInt(f[2]) || 0;
+    const precio = limpiarPrecio(f[3]);
+    const sinopsis = (f[4] || "").trim();
+    const foto = (f[5] || "").trim();
+    if(porTitulo.has(clave)){
+      const e = porTitulo.get(clave);
+      e.disponible += disp;
+      if(!e.precio && precio) e.precio = precio;
+      if(disp > 0 && precio) e.precio = precio;
+      if(!e.sinopsis && sinopsis) e.sinopsis = sinopsis;
+      if(!e.foto && foto) e.foto = foto;
+    } else {
+      porTitulo.set(clave, {
+        titulo: capitalizar(nombre),
+        genero: capitalizar((f[1] || "").trim() || "Otros"),
+        disponible: disp,
+        precio: precio,
+        sinopsis: sinopsis,
+        foto: foto
+      });
+    }
+  }
+  return Array.from(porTitulo.values());
+}
 
 function mensajeWhatsapp(libro){
   const texto = `Hola! Me interesa el libro "${libro.titulo}" (L.${libro.precio}). ¿Está disponible?`;
@@ -363,7 +346,7 @@ function render(){
   let lista = LIBROS.filter(l=>{
     if(q && !l.titulo.toLowerCase().includes(q)) return false;
     if(g !== "Todos los géneros" && l.genero !== g) return false;
-    if(soloDisp && !l.disponible) return false;
+    if(soloDisp && l.disponible <= 0) return false;
     return true;
   });
 
@@ -380,16 +363,18 @@ function render(){
 
   grid.innerHTML = lista.map(l=>`
     <div class="card">
-      <img class="foto" src="${l.imagen}" alt="${l.titulo}" loading="lazy">
+      ${l.foto
+        ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
+        : `<div class="foto-vacia">Letras &amp; Vinos</div>`}
       <div class="cuerpo">
         <div class="genero-tag">${l.genero}</div>
         <h3>${l.titulo}</h3>
-        <p class="sinopsis">${l.sinopsis}</p>
+        ${l.sinopsis ? `<p class="sinopsis">${l.sinopsis}</p>` : ``}
         <div class="fila-precio">
-          <span class="precio">L.${l.precio}</span>
-          <span class="estado ${l.disponible ? 'disp':'agot'}">${l.disponible ? 'Disponible':'Agotado'}</span>
+          <span class="precio">${l.precio ? 'L.' + l.precio : ''}</span>
+          <span class="estado ${l.disponible > 0 ? 'disp':'agot'}">${l.disponible > 0 ? 'Disponible':'Agotado'}</span>
         </div>
-        ${l.disponible
+        ${l.disponible > 0
           ? `<a class="btn activo" href="${mensajeWhatsapp(l)}" target="_blank" rel="noopener">Lo quiero — WhatsApp</a>`
           : `<span class="btn inactivo">No disponible</span>`
         }
@@ -398,12 +383,25 @@ function render(){
   `).join("");
 }
 
+fetch(URL_CSV)
+  .then(r => {
+    if(!r.ok) throw new Error("No se pudo leer el catálogo");
+    return r.text();
+  })
+  .then(texto => {
+    LIBROS = procesar(parseCSV(texto));
+    const generos = ["Todos los géneros", ...Array.from(new Set(LIBROS.map(l=>l.genero))).sort()];
+    filtroGenero.innerHTML = generos.map(g=>`<option value="${g}">${g}</option>`).join("");
+    render();
+  })
+  .catch(err => {
+    grid.innerHTML = `<div class="vacio">No pudimos cargar el catálogo en este momento. Intenta de nuevo en unos minutos.</div>`;
+  });
+
 buscador.addEventListener("input", render);
 filtroGenero.addEventListener("change", render);
 orden.addEventListener("change", render);
 soloDisponibles.addEventListener("change", render);
-
-render();
 </script>
 
 </body>
