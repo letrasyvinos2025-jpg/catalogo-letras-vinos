@@ -171,18 +171,21 @@
     padding:0.6rem 0.8rem;
     border-radius:8px;
     display:block;
+    border:none;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
   }
   .btn.activo{
     background:var(--borgona);
     color:#fff;
   }
   .btn.activo:hover{background:var(--borgona-osc);}
-  .btn.inactivo{
-    background:var(--porcelana);
-    color:var(--texto-suave);
-    cursor:default;
-    pointer-events:none;
+  .btn.solicitar{
+    background:#fff;
+    color:var(--borgona);
+    border:1.5px solid var(--borgona);
   }
+  .btn.solicitar:hover{background:var(--rosa-niebla);}
   .vacio{
     text-align:center;color:var(--texto-suave);padding:3rem 1rem;font-size:0.95rem;
   }
@@ -203,6 +206,50 @@
     margin-bottom:0.5rem;
   }
   footer .datos{display:flex;justify-content:center;gap:1.5rem;flex-wrap:wrap;color:var(--texto-suave);}
+  .overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(58,51,53,0.45);
+    align-items:center; justify-content:center;
+    padding:1rem;
+    z-index:100;
+  }
+  .overlay.abierto{ display:flex; }
+  .modal{
+    background:#fff;
+    border-radius:16px;
+    max-width:360px;
+    width:100%;
+    padding:1.6rem 1.5rem 1.5rem;
+    position:relative;
+  }
+  .modal .cerrar{
+    position:absolute; top:0.8rem; right:1rem;
+    background:none; border:none; font-size:1.3rem;
+    color:var(--texto-suave); cursor:pointer; line-height:1;
+  }
+  .modal .genero-tag{ margin-bottom:0.7rem; }
+  .modal h3{
+    font-family:'Fraunces',serif; font-weight:500; font-size:1.15rem;
+    margin:0 0 0.3rem; color:var(--texto);
+  }
+  .modal p.ayuda{
+    font-size:0.82rem; color:var(--texto-suave); margin:0 0 1.1rem; line-height:1.5;
+  }
+  .modal label{
+    display:block; font-size:0.78rem; color:var(--texto-suave); margin:0 0 0.3rem;
+  }
+  .modal input[type="text"], .modal input[type="tel"]{
+    width:100%; font-family:'Inter',sans-serif; font-size:0.9rem;
+    padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--linea);
+    margin-bottom:1rem; outline:none;
+  }
+  .modal input:focus{ border-color:var(--borgona); }
+  .modal .mensaje{
+    font-size:0.85rem; text-align:center; padding:0.5rem 0 0.2rem; min-height:1.2rem;
+  }
+  .modal .mensaje.exito{ color:#1F6E63; }
+  .modal .mensaje.error{ color:var(--coral-osc); }
   @media (max-width:480px){
     .barra{padding:0.8rem;}
   }
@@ -240,15 +287,38 @@
   </div>
 </footer>
 
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="cerrar" id="cerrarModal" aria-label="Cerrar">×</button>
+    <div class="genero-tag" id="modalGenero"></div>
+    <h3 id="modalTitulo"></h3>
+    <p class="ayuda">Este libro está agotado por ahora. Déjanos tu nombre y celular y te avisamos apenas vuelva a estar disponible.</p>
+    <form id="formSolicitud">
+      <label for="campoNombre">Tu nombre</label>
+      <input type="text" id="campoNombre" required>
+      <label for="campoCelular">Tu número de celular</label>
+      <input type="tel" id="campoCelular" required placeholder="9999-9999">
+      <button type="submit" class="btn activo" id="botonEnviar">Enviar solicitud</button>
+      <p class="mensaje" id="modalMensaje"></p>
+    </form>
+  </div>
+</div>
+
 <script>
 // ---------------------------------------------------------------------
 // CATÁLOGO EN VIVO: lee la pestaña "Catálogo Público" del Google Sheet
-// (publicada como CSV). Al editar el Sheet, el catálogo se actualiza
-// solo (el cambio puede tardar unos minutos en reflejarse, por el caché
-// de Google). Las fotos y el logo viven en este mismo repositorio.
+// (publicada como CSV: NOMBRE, AUTOR, GÉNERO, DISPONIBLE, PRECIO,
+// SINOPSIS, FOTO). Al editar el Sheet, el catálogo se actualiza solo
+// (puede tardar unos minutos por el caché de Google).
+//
+// Los libros agotados muestran "Solicitar este libro": el formulario
+// envía nombre y celular a una Apps Script Web App que agrega la fila
+// en "Solicitudes de Libros" buscando cada columna por su encabezado,
+// igual que hace el bot de Telegram.
 // ---------------------------------------------------------------------
 const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=15425874&single=true&output=csv";
 const NUMERO_WHATSAPP = "50492461991";
+const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbz0dFtc_8wt70-JXk_HD7ZFofMNA_H4dLryxf0sxZjeg1CzOd86x295969rqW_cP4yd/exec";
 
 const grid = document.getElementById("grid");
 const contador = document.getElementById("contador");
@@ -257,7 +327,18 @@ const filtroGenero = document.getElementById("filtroGenero");
 const orden = document.getElementById("orden");
 const soloDisponibles = document.getElementById("soloDisponibles");
 
+const overlay = document.getElementById("overlay");
+const modalGenero = document.getElementById("modalGenero");
+const modalTitulo = document.getElementById("modalTitulo");
+const formSolicitud = document.getElementById("formSolicitud");
+const campoNombre = document.getElementById("campoNombre");
+const campoCelular = document.getElementById("campoCelular");
+const botonEnviar = document.getElementById("botonEnviar");
+const modalMensaje = document.getElementById("modalMensaje");
+const cerrarModal = document.getElementById("cerrarModal");
+
 let LIBROS = [];
+let libroActivo = null;
 
 function parseCSV(texto){
   const filas = [];
@@ -299,6 +380,7 @@ function capitalizar(t){
   }).join(' ');
 }
 
+// Columnas del CSV en orden: NOMBRE, AUTOR, GÉNERO, DISPONIBLE, PRECIO, SINOPSIS, FOTO
 function procesar(filas){
   const porTitulo = new Map();
   for(let i = 1; i < filas.length; i++){
@@ -307,13 +389,15 @@ function procesar(filas){
     const nombre = normalizarTitulo(f[0] || "");
     if(!nombre) continue;
     const clave = nombre.toUpperCase();
-    const disp = parseInt(f[2]) || 0;
-    const precio = limpiarPrecio(f[3]);
-    const sinopsis = (f[4] || "").trim();
-    const foto = (f[5] || "").trim();
+    const autor = (f[1] || "").trim();
+    const disp = parseInt(f[3]) || 0;
+    const precio = limpiarPrecio(f[4]);
+    const sinopsis = (f[5] || "").trim();
+    const foto = (f[6] || "").trim();
     if(porTitulo.has(clave)){
       const e = porTitulo.get(clave);
       e.disponible += disp;
+      if(!e.autor && autor) e.autor = autor;
       if(!e.precio && precio) e.precio = precio;
       if(disp > 0 && precio) e.precio = precio;
       if(!e.sinopsis && sinopsis) e.sinopsis = sinopsis;
@@ -321,7 +405,8 @@ function procesar(filas){
     } else {
       porTitulo.set(clave, {
         titulo: capitalizar(nombre),
-        genero: capitalizar((f[1] || "").trim() || "Otros"),
+        autor: autor,
+        genero: capitalizar((f[2] || "").trim() || "Otros"),
         disponible: disp,
         precio: precio,
         sinopsis: sinopsis,
@@ -361,7 +446,7 @@ function render(){
     return;
   }
 
-  grid.innerHTML = lista.map(l=>`
+  grid.innerHTML = lista.map((l,i)=>`
     <div class="card">
       ${l.foto
         ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
@@ -376,12 +461,80 @@ function render(){
         </div>
         ${l.disponible > 0
           ? `<a class="btn activo" href="${mensajeWhatsapp(l)}" target="_blank" rel="noopener">Lo quiero — WhatsApp</a>`
-          : `<span class="btn inactivo">No disponible</span>`
+          : `<button type="button" class="btn solicitar" data-idx="${i}">Solicitar este libro</button>`
         }
       </div>
     </div>
   `).join("");
+
+  grid.querySelectorAll(".btn.solicitar").forEach(btn=>{
+    btn.addEventListener("click", ()=> abrirModal(lista[parseInt(btn.dataset.idx)]));
+  });
 }
+
+function abrirModal(libro){
+  libroActivo = libro;
+  modalGenero.textContent = libro.genero;
+  modalTitulo.textContent = libro.titulo;
+  campoNombre.value = "";
+  campoCelular.value = "";
+  modalMensaje.textContent = "";
+  modalMensaje.className = "mensaje";
+  botonEnviar.disabled = false;
+  botonEnviar.textContent = "Enviar solicitud";
+  overlay.classList.add("abierto");
+  setTimeout(()=>campoNombre.focus(), 50);
+}
+
+function cerrar(){
+  overlay.classList.remove("abierto");
+  libroActivo = null;
+}
+
+cerrarModal.addEventListener("click", cerrar);
+overlay.addEventListener("click", (e)=>{ if(e.target === overlay) cerrar(); });
+
+formSolicitud.addEventListener("submit", function(e){
+  e.preventDefault();
+  if(!libroActivo) return;
+
+  if(URL_APPS_SCRIPT.indexOf("PENDIENTE") === 0){
+    modalMensaje.textContent = "Esta función todavía no está activada. Escríbenos directo por WhatsApp mientras tanto.";
+    modalMensaje.className = "mensaje error";
+    return;
+  }
+
+  botonEnviar.disabled = true;
+  botonEnviar.textContent = "Enviando…";
+  modalMensaje.textContent = "";
+  modalMensaje.className = "mensaje";
+
+  const payload = {
+    libro: libroActivo.titulo,
+    autor: libroActivo.autor || "",
+    nombre: campoNombre.value.trim(),
+    celular: campoCelular.value.trim()
+  };
+
+  fetch(URL_APPS_SCRIPT, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(payload)
+  })
+  .then(()=>{
+    modalMensaje.textContent = "¡Listo! Te avisaremos apenas vuelva a estar disponible.";
+    modalMensaje.className = "mensaje exito";
+    botonEnviar.textContent = "Enviado";
+    setTimeout(cerrar, 2200);
+  })
+  .catch(()=>{
+    modalMensaje.textContent = "No se pudo enviar. Intenta de nuevo o escríbenos por WhatsApp.";
+    modalMensaje.className = "mensaje error";
+    botonEnviar.disabled = false;
+    botonEnviar.textContent = "Enviar solicitud";
+  });
+});
 
 fetch(URL_CSV)
   .then(r => {
