@@ -306,10 +306,29 @@
 
 <script>
 // ---------------------------------------------------------------------
-// CATÁLOGO EN VIVO: lee la pestaña "Catálogo Público" del Google Sheet
-// (publicada como CSV: NOMBRE, AUTOR, GÉNERO, DISPONIBLE, PRECIO,
-// SINOPSIS, FOTO). Al editar el Sheet, el catálogo se actualiza solo
-// (puede tardar unos minutos por el caché de Google).
+// CATÁLOGO EN VIVO: lee dos pestañas del Google Sheet, publicadas como CSV.
+//
+// 1) Inventario (CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE,
+//    PRECIO, SINOPSIS, FOTO) — una fila por código/lote de cada libro.
+// 2) Ventas por Código (CÓDIGO, CONTEO) — cuántas veces aparece cada
+//    código en "Detalle de Ventas", sin datos de clientas.
+//
+// Reglas de negocio (las mismas que ya usa el bot de Telegram):
+// - Un mismo título con el mismo precio en varios códigos se consolida
+//   sumando su disponibilidad. Si dos códigos del mismo título tienen
+//   precios distintos, se tratan por separado.
+// - De los precios de un título que tengan stock, se muestra solo el
+//   más barato. En cuanto ese se agota, el catálogo pasa solo al
+//   siguiente precio disponible — nunca se muestran dos precios del
+//   mismo título a la vez.
+// - Cotejo en vivo: si "Ventas por Código" muestra más ventas de un
+//   código que las que ya están registradas en VENDIDO (venta hecha
+//   pero inventario aún no actualizado a mano), se resta esa
+//   diferencia al disponible que se muestra, para no ofrecer un
+//   ejemplar que ya está comprometido.
+//
+// Al editar el Sheet, el catálogo se actualiza solo (puede tardar unos
+// minutos por el caché de Google).
 //
 // Los libros agotados muestran "Solicitar este libro": el formulario
 // envía nombre y celular a una Apps Script Web App que agrega la fila
@@ -317,6 +336,7 @@
 // igual que hace el bot de Telegram.
 // ---------------------------------------------------------------------
 const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=15425874&single=true&output=csv";
+const URL_CSV_VENTAS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=670296559&single=true&output=csv";
 const NUMERO_WHATSAPP = "50492461991";
 const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbz0dFtc_8wt70-JXk_HD7ZFofMNA_H4dLryxf0sxZjeg1CzOd86x295969rqW_cP4yd/exec";
 
@@ -380,41 +400,95 @@ function capitalizar(t){
   }).join(' ');
 }
 
-// Columnas del CSV en orden: NOMBRE, AUTOR, GÉNERO, DISPONIBLE, PRECIO, SINOPSIS, FOTO
-function procesar(filas){
-  const porTitulo = new Map();
+function parseVentasPorCodigo(filas){
+  const mapa = new Map();
   for(let i = 1; i < filas.length; i++){
     const f = filas[i];
-    if(!f || f.length < 4) continue;
-    const nombre = normalizarTitulo(f[0] || "");
+    if(!f || f.length < 2) continue;
+    const codigo = (f[0] || "").trim();
+    if(!codigo) continue;
+    const conteo = parseInt(f[1]) || 0;
+    mapa.set(codigo, conteo);
+  }
+  return mapa;
+}
+
+// Columnas del CSV de Inventario, en orden:
+// CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE, PRECIO, SINOPSIS, FOTO
+function procesar(filas, mapaVentas){
+  // Paso 1: una entrada por código, con el disponible ajustado por el
+  // cotejo contra "Ventas por Código".
+  const porCodigo = [];
+  for(let i = 1; i < filas.length; i++){
+    const f = filas[i];
+    if(!f || f.length < 6) continue;
+    const codigo = (f[0] || "").trim();
+    const nombre = normalizarTitulo(f[1] || "");
     if(!nombre) continue;
-    const clave = nombre.toUpperCase();
-    const autor = (f[1] || "").trim();
-    const disp = parseInt(f[3]) || 0;
-    const precio = limpiarPrecio(f[4]);
-    const sinopsis = (f[5] || "").trim();
-    const foto = (f[6] || "").trim();
-    if(porTitulo.has(clave)){
-      const e = porTitulo.get(clave);
-      e.disponible += disp;
-      if(!e.autor && autor) e.autor = autor;
-      if(!e.precio && precio) e.precio = precio;
-      if(disp > 0 && precio) e.precio = precio;
-      if(!e.sinopsis && sinopsis) e.sinopsis = sinopsis;
-      if(!e.foto && foto) e.foto = foto;
+    const autor = (f[2] || "").trim();
+    const genero = (f[3] || "").trim();
+    const vendidoDeclarado = parseInt(f[4]) || 0;
+    const disponibleDeclarado = parseInt(f[5]) || 0;
+    const precio = limpiarPrecio(f[6]);
+    const sinopsis = (f[7] || "").trim();
+    const foto = (f[8] || "").trim();
+
+    const ventaReal = mapaVentas.get(codigo) || 0;
+    const brecha = Math.max(0, ventaReal - vendidoDeclarado);
+    const disponibleAjustado = Math.max(0, disponibleDeclarado - brecha);
+
+    porCodigo.push({ nombre, autor, genero, precio, sinopsis, foto, disponible: disponibleAjustado });
+  }
+
+  // Paso 2: agrupar por título + precio (misma regla que el bot de
+  // Telegram — mismo título y mismo precio se suma, distinto precio se
+  // separa).
+  const buckets = new Map();
+  for(const c of porCodigo){
+    const claveTitulo = c.nombre.toUpperCase();
+    const clave = claveTitulo + "|" + c.precio;
+    if(buckets.has(clave)){
+      const b = buckets.get(clave);
+      b.disponible += c.disponible;
+      if(!b.autor && c.autor) b.autor = c.autor;
+      if(!b.sinopsis && c.sinopsis) b.sinopsis = c.sinopsis;
+      if(!b.foto && c.foto) b.foto = c.foto;
     } else {
-      porTitulo.set(clave, {
-        titulo: capitalizar(nombre),
-        autor: autor,
-        genero: capitalizar((f[2] || "").trim() || "Otros"),
-        disponible: disp,
-        precio: precio,
-        sinopsis: sinopsis,
-        foto: foto
+      buckets.set(clave, {
+        titulo: capitalizar(c.nombre),
+        claveTitulo,
+        autor: c.autor,
+        genero: capitalizar(c.genero || "Otros"),
+        precio: c.precio,
+        sinopsis: c.sinopsis,
+        foto: c.foto,
+        disponible: c.disponible
       });
     }
   }
-  return Array.from(porTitulo.values());
+
+  // Paso 3: por título, mostrar solo el precio más barato que tenga
+  // stock. Si ninguno tiene stock, se muestra agotado con el precio
+  // más barato registrado (referencia para "Solicitar este libro").
+  const porTitulo = new Map();
+  for(const b of buckets.values()){
+    if(!porTitulo.has(b.claveTitulo)) porTitulo.set(b.claveTitulo, []);
+    porTitulo.get(b.claveTitulo).push(b);
+  }
+
+  const resultado = [];
+  for(const lista of porTitulo.values()){
+    lista.sort((a, b) => a.precio - b.precio);
+    const conStock = lista.filter(b => b.disponible > 0);
+    const elegido = conStock.length ? conStock[0] : lista[0];
+    for(const b of lista){
+      if(!elegido.autor && b.autor) elegido.autor = b.autor;
+      if(!elegido.sinopsis && b.sinopsis) elegido.sinopsis = b.sinopsis;
+      if(!elegido.foto && b.foto) elegido.foto = b.foto;
+    }
+    resultado.push(elegido);
+  }
+  return resultado;
 }
 
 function mensajeWhatsapp(libro){
@@ -536,13 +610,13 @@ formSolicitud.addEventListener("submit", function(e){
   });
 });
 
-fetch(URL_CSV)
-  .then(r => {
-    if(!r.ok) throw new Error("No se pudo leer el catálogo");
-    return r.text();
-  })
-  .then(texto => {
-    LIBROS = procesar(parseCSV(texto));
+Promise.all([
+  fetch(URL_CSV).then(r => { if(!r.ok) throw new Error("No se pudo leer el inventario"); return r.text(); }),
+  fetch(URL_CSV_VENTAS).then(r => { if(!r.ok) throw new Error("No se pudo leer las ventas"); return r.text(); })
+])
+  .then(([textoInventario, textoVentas]) => {
+    const mapaVentas = parseVentasPorCodigo(parseCSV(textoVentas));
+    LIBROS = procesar(parseCSV(textoInventario), mapaVentas);
     const generos = ["Todos los géneros", ...Array.from(new Set(LIBROS.map(l=>l.genero))).sort()];
     filtroGenero.innerHTML = generos.map(g=>`<option value="${g}">${g}</option>`).join("");
     render();
