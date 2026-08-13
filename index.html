@@ -29,29 +29,29 @@
     color:var(--texto);
   }
   header{
-    padding:2.2rem 1.5rem 1.5rem;
+    padding:2.6rem 1.5rem 2.2rem;
     text-align:center;
+    background:var(--borgona);
   }
   .logo-marca{
     display:block;
     max-width:400px;
     width:82%;
     margin:0 auto;
-    border-radius:14px;
   }
   header p.tagline{
     font-family:'Fraunces',serif;
     font-weight:400;
     font-style:italic;
     font-size:1rem;
-    color:var(--texto-suave);
+    color:var(--rosa-niebla);
     margin:0.8rem 0 0;
   }
   header p.sub{
     font-size:0.72rem;
     letter-spacing:2px;
     text-transform:uppercase;
-    color:var(--texto-suave);
+    color:rgba(250,248,243,0.65);
     margin:1rem 0 0;
   }
   .barra{
@@ -196,16 +196,16 @@
   footer{
     text-align:center;
     padding:1.8rem 1rem 2.2rem;
-    background:var(--porcelana);
-    color:var(--texto);
+    background:var(--borgona);
+    color:var(--blanco-calido);
     font-size:0.85rem;
   }
   footer .logo{
     font-family:'Fraunces',serif;font-weight:500;font-size:1.1rem;
-    color:var(--borgona);
+    color:var(--blanco-calido);
     margin-bottom:0.5rem;
   }
-  footer .datos{display:flex;justify-content:center;gap:1.5rem;flex-wrap:wrap;color:var(--texto-suave);}
+  footer .datos{display:flex;justify-content:center;gap:1.5rem;flex-wrap:wrap;color:rgba(250,248,243,0.7);}
   .overlay{
     display:none;
     position:fixed; inset:0;
@@ -258,7 +258,7 @@
 <body>
 
 <header>
-  <img class="logo-marca" src="logo.png" alt="Letras &amp; Vinos">
+  <img class="logo-marca" src="logo_transparente.png" alt="Letras &amp; Vinos">
   <p class="tagline">Lectura en estado líquido</p>
   <p class="sub">Catálogo de libros</p>
 </header>
@@ -266,6 +266,11 @@
 <div class="barra">
   <input type="text" id="buscador" placeholder="Buscar por título...">
   <select id="filtroGenero"><option>Todos los géneros</option></select>
+  <select id="filtroTipo">
+    <option value="Todos">Pasta blanda y dura</option>
+    <option value="Pasta Blanda">Pasta blanda</option>
+    <option value="Pasta Dura">Pasta dura</option>
+  </select>
   <select id="orden">
     <option value="alfa">Ordenar: Título A-Z</option>
     <option value="precioAsc">Precio: menor a mayor</option>
@@ -309,7 +314,9 @@
 // CATÁLOGO EN VIVO: lee dos pestañas del Google Sheet, publicadas como CSV.
 //
 // 1) Inventario (CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE,
-//    PRECIO, SINOPSIS, FOTO) — una fila por código/lote de cada libro.
+//    PRECIO, SINOPSIS, FOTO, TIPO) — una fila por código/lote de cada
+//    libro. TIPO es Pasta Blanda / Pasta Dura, columna "TIPO DE LIBRO"
+//    en Inventario de Libros.
 // 2) Ventas por Código (CÓDIGO, CONTEO) — cuántas veces aparece cada
 //    código en "Detalle de Ventas", sin datos de clientas.
 //
@@ -344,6 +351,7 @@ const grid = document.getElementById("grid");
 const contador = document.getElementById("contador");
 const buscador = document.getElementById("buscador");
 const filtroGenero = document.getElementById("filtroGenero");
+const filtroTipo = document.getElementById("filtroTipo");
 const orden = document.getElementById("orden");
 const soloDisponibles = document.getElementById("soloDisponibles");
 
@@ -414,7 +422,7 @@ function parseVentasPorCodigo(filas){
 }
 
 // Columnas del CSV de Inventario, en orden:
-// CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE, PRECIO, SINOPSIS, FOTO
+// CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE, PRECIO, SINOPSIS, FOTO, TIPO
 function procesar(filas, mapaVentas){
   // Paso 1: una entrada por código, con el disponible ajustado por el
   // cotejo contra "Ventas por Código".
@@ -432,12 +440,15 @@ function procesar(filas, mapaVentas){
     const precio = limpiarPrecio(f[6]);
     const sinopsis = (f[7] || "").trim();
     const foto = (f[8] || "").trim();
+    // Pasta Blanda / PASTA BLANDA / pasta blanda: se normaliza igual,
+    // sin importar cómo se haya escrito en el Sheet.
+    const tipo = capitalizar((f[9] || "").trim());
 
     const ventaReal = mapaVentas.get(codigo) || 0;
     const brecha = Math.max(0, ventaReal - vendidoDeclarado);
     const disponibleAjustado = Math.max(0, disponibleDeclarado - brecha);
 
-    porCodigo.push({ nombre, autor, genero, precio, sinopsis, foto, disponible: disponibleAjustado });
+    porCodigo.push({ nombre, autor, genero, precio, sinopsis, foto, tipo, disponible: disponibleAjustado });
   }
 
   // Paso 2: agrupar por título + precio (misma regla que el bot de
@@ -453,6 +464,7 @@ function procesar(filas, mapaVentas){
       if(!b.autor && c.autor) b.autor = c.autor;
       if(!b.sinopsis && c.sinopsis) b.sinopsis = c.sinopsis;
       if(!b.foto && c.foto) b.foto = c.foto;
+      if(!b.tipo && c.tipo) b.tipo = c.tipo;
     } else {
       buckets.set(clave, {
         titulo: capitalizar(c.nombre),
@@ -462,6 +474,7 @@ function procesar(filas, mapaVentas){
         precio: c.precio,
         sinopsis: c.sinopsis,
         foto: c.foto,
+        tipo: c.tipo,
         disponible: c.disponible
       });
     }
@@ -485,6 +498,7 @@ function procesar(filas, mapaVentas){
       if(!elegido.autor && b.autor) elegido.autor = b.autor;
       if(!elegido.sinopsis && b.sinopsis) elegido.sinopsis = b.sinopsis;
       if(!elegido.foto && b.foto) elegido.foto = b.foto;
+      if(!elegido.tipo && b.tipo) elegido.tipo = b.tipo;
     }
     resultado.push(elegido);
   }
@@ -499,12 +513,14 @@ function mensajeWhatsapp(libro){
 function render(){
   const q = buscador.value.trim().toLowerCase();
   const g = filtroGenero.value;
+  const t = filtroTipo.value;
   const soloDisp = soloDisponibles.checked;
   const ord = orden.value;
 
   let lista = LIBROS.filter(l=>{
     if(q && !l.titulo.toLowerCase().includes(q)) return false;
     if(g !== "Todos los géneros" && l.genero !== g) return false;
+    if(t !== "Todos" && l.tipo !== t) return false;
     if(soloDisp && l.disponible <= 0) return false;
     return true;
   });
@@ -526,7 +542,7 @@ function render(){
         ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
         : `<div class="foto-vacia">Letras &amp; Vinos</div>`}
       <div class="cuerpo">
-        <div class="genero-tag">${l.genero}</div>
+        <div class="genero-tag">${l.genero}${l.tipo ? ' · ' + l.tipo : ''}</div>
         <h3>${l.titulo}</h3>
         ${l.sinopsis ? `<p class="sinopsis">${l.sinopsis}</p>` : ``}
         <div class="fila-precio">
@@ -627,6 +643,7 @@ Promise.all([
 
 buscador.addEventListener("input", render);
 filtroGenero.addEventListener("change", render);
+filtroTipo.addEventListener("change", render);
 orden.addEventListener("change", render);
 soloDisponibles.addEventListener("change", render);
 </script>
