@@ -29,9 +29,9 @@
     color:var(--texto);
   }
   header{
-    padding:2.6rem 1.5rem 2.2rem;
+    padding:2.2rem 1.5rem 1.5rem;
     text-align:center;
-    background:var(--borgona);
+    background:var(--blanco-calido);
   }
   .logo-marca{
     display:block;
@@ -44,14 +44,14 @@
     font-weight:400;
     font-style:italic;
     font-size:1rem;
-    color:var(--rosa-niebla);
+    color:var(--texto-suave);
     margin:0.8rem 0 0;
   }
   header p.sub{
     font-size:0.72rem;
     letter-spacing:2px;
     text-transform:uppercase;
-    color:rgba(250,248,243,0.65);
+    color:var(--texto-suave);
     margin:1rem 0 0;
   }
   .barra{
@@ -125,18 +125,29 @@
     font-size:0.85rem;
   }
   .card .cuerpo{padding:1rem 1.15rem 1.15rem;display:flex;flex-direction:column;flex:1;}
-  .genero-tag{
+  .badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0.4rem;
+    margin-bottom:0.55rem;
+  }
+  .genero-tag, .tipo-tag{
     display:inline-block;
     font-size:0.66rem;
     text-transform:uppercase;
     letter-spacing:0.8px;
-    color:var(--borgona);
     font-weight:600;
-    background:var(--rosa-niebla);
     padding:0.2rem 0.6rem;
     border-radius:10px;
-    margin-bottom:0.55rem;
     width:fit-content;
+  }
+  .genero-tag{
+    color:var(--borgona);
+    background:var(--rosa-niebla);
+  }
+  .tipo-tag{
+    color:var(--borgona-osc);
+    background:var(--lila-suave);
   }
   .card h3{
     font-family:'Fraunces',serif;
@@ -542,7 +553,10 @@ function render(){
         ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
         : `<div class="foto-vacia">Letras &amp; Vinos</div>`}
       <div class="cuerpo">
-        <div class="genero-tag">${l.genero}${l.tipo ? ' · ' + l.tipo : ''}</div>
+        <div class="badges">
+          <div class="genero-tag">${l.genero}</div>
+          ${l.tipo ? `<div class="tipo-tag">${l.tipo}</div>` : ``}
+        </div>
         <h3>${l.titulo}</h3>
         ${l.sinopsis ? `<p class="sinopsis">${l.sinopsis}</p>` : ``}
         <div class="fila-precio">
