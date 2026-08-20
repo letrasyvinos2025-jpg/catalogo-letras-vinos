@@ -149,6 +149,10 @@
     color:var(--borgona-osc);
     background:var(--lila-suave);
   }
+  .idioma-tag{
+    color:#1F6E63;
+    background:var(--azul-hielo);
+  }
   .card h3{
     font-family:'Fraunces',serif;
     font-weight:500;
@@ -282,6 +286,7 @@
     <option value="Pasta Blanda">Pasta blanda</option>
     <option value="Pasta Dura">Pasta dura</option>
   </select>
+  <select id="filtroIdioma"><option>Todos los idiomas</option></select>
   <select id="orden">
     <option value="alfa">Ordenar: Título A-Z</option>
     <option value="precioAsc">Precio: menor a mayor</option>
@@ -325,11 +330,22 @@
 // CATÁLOGO EN VIVO: lee dos pestañas del Google Sheet, publicadas como CSV.
 //
 // 1) Inventario (CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE,
-//    PRECIO, SINOPSIS, FOTO, TIPO) — una fila por código/lote de cada
-//    libro. TIPO es Pasta Blanda / Pasta Dura, columna "TIPO DE LIBRO"
-//    en Inventario de Libros.
+//    PRECIO, SINOPSIS, FOTO, TIPO, GRUPOCAJA, CAJACOMPLETA, IDIOMA) —
+//    una fila por código/lote de cada libro. TIPO es Pasta Blanda /
+//    Pasta Dura ("TIPO DE LIBRO" en el Sheet). GRUPOCAJA identifica el
+//    lote exacto de una caja ("GRUPO CAJA"). CAJACOMPLETA distingue
+//    Sí (esta fila es la caja completa), No (tomo suelto normal) y
+//    Solo Caja (tomo que nunca se vende suelto) — columna
+//    "CAJA COMPLETA". IDIOMA es el idioma del libro.
 // 2) Ventas por Código (CÓDIGO, CONTEO) — cuántas veces aparece cada
 //    código en "Detalle de Ventas", sin datos de clientas.
+//
+// Cajas completas: para cada Grupo Caja, se calcula cuántas cajas
+// completas hay sumando el disponible de cada tomo por título dentro
+// del grupo y tomando el mínimo entre los tomos — si falta uno, la
+// caja no está completa aunque los demás tengan stock. Los tomos
+// "Solo Caja" nunca aparecen como tarjeta propia, solo cuentan para
+// ese cálculo.
 //
 // Reglas de negocio (las mismas que ya usa el bot de Telegram):
 // - Un mismo título con el mismo precio en varios códigos se consolida
@@ -363,6 +379,7 @@ const contador = document.getElementById("contador");
 const buscador = document.getElementById("buscador");
 const filtroGenero = document.getElementById("filtroGenero");
 const filtroTipo = document.getElementById("filtroTipo");
+const filtroIdioma = document.getElementById("filtroIdioma");
 const orden = document.getElementById("orden");
 const soloDisponibles = document.getElementById("soloDisponibles");
 
@@ -419,6 +436,12 @@ function capitalizar(t){
   }).join(' ');
 }
 
+function normalizarPlano(t){
+  const combinados = /[\u0300-\u036f]/g;
+  const sinAcentos = (t || "").toString().normalize("NFD").replace(combinados, "");
+  return sinAcentos.trim().toLowerCase();
+}
+
 function parseVentasPorCodigo(filas){
   const mapa = new Map();
   for(let i = 1; i < filas.length; i++){
@@ -433,10 +456,11 @@ function parseVentasPorCodigo(filas){
 }
 
 // Columnas del CSV de Inventario, en orden:
-// CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE, PRECIO, SINOPSIS, FOTO, TIPO
+// CODIGO, NOMBRE, AUTOR, GENERO, VENDIDO, DISPONIBLE, PRECIO, SINOPSIS, FOTO,
+// TIPO, GRUPOCAJA, CAJACOMPLETA, IDIOMA
 function procesar(filas, mapaVentas){
-  // Paso 1: una entrada por código, con el disponible ajustado por el
-  // cotejo contra "Ventas por Código".
+  // Paso 1: una entrada por código/fila, con el disponible ya ajustado
+  // por el cotejo contra "Ventas por Código".
   const porCodigo = [];
   for(let i = 1; i < filas.length; i++){
     const f = filas[i];
@@ -454,19 +478,66 @@ function procesar(filas, mapaVentas){
     // Pasta Blanda / PASTA BLANDA / pasta blanda: se normaliza igual,
     // sin importar cómo se haya escrito en el Sheet.
     const tipo = capitalizar((f[9] || "").trim());
+    const idioma = capitalizar((f[12] || "").trim());
+
+    const grupoRaw = (f[10] || "").trim();
+    const grupoCaja = (!grupoRaw || normalizarPlano(grupoRaw) === "n/a") ? "" : grupoRaw;
+    const cajaValor = normalizarPlano(f[11] || "");
+    const esCajaCompleta = cajaValor === "si";
+    const esSoloCaja = cajaValor === "solo caja";
 
     const ventaReal = mapaVentas.get(codigo) || 0;
     const brecha = Math.max(0, ventaReal - vendidoDeclarado);
     const disponibleAjustado = Math.max(0, disponibleDeclarado - brecha);
 
-    porCodigo.push({ nombre, autor, genero, precio, sinopsis, foto, tipo, disponible: disponibleAjustado });
+    porCodigo.push({
+      nombre, autor, genero, precio, sinopsis, foto, tipo, idioma,
+      grupoCaja, esCajaCompleta, esSoloCaja,
+      disponible: disponibleAjustado
+    });
   }
 
-  // Paso 2: agrupar por título + precio (misma regla que el bot de
+  // Paso 2: para cada Grupo Caja, calcular cuántas cajas completas se
+  // pueden armar. Se suma por título dentro del grupo (por si el mismo
+  // tomo del mismo lote tuviera dos filas) y se toma el mínimo entre
+  // los tomos distintos del grupo — si falta uno, no hay caja completa.
+  const disponiblePorGrupo = new Map();
+  const componentesPorGrupo = new Map();
+  for(const c of porCodigo){
+    if(!c.grupoCaja || c.esCajaCompleta) continue;
+    if(!componentesPorGrupo.has(c.grupoCaja)) componentesPorGrupo.set(c.grupoCaja, new Map());
+    const porTituloDelGrupo = componentesPorGrupo.get(c.grupoCaja);
+    const claveTitulo = c.nombre.toUpperCase();
+    porTituloDelGrupo.set(claveTitulo, (porTituloDelGrupo.get(claveTitulo) || 0) + c.disponible);
+  }
+  for(const [grupo, porTituloDelGrupo] of componentesPorGrupo.entries()){
+    const valores = Array.from(porTituloDelGrupo.values());
+    disponiblePorGrupo.set(grupo, valores.length ? Math.min(...valores) : 0);
+  }
+
+  // Paso 3: armar la lista final que se muestra en el catálogo.
+  // - Las filas "Solo Caja" nunca se muestran solas, se descartan aquí
+  //   (ya cumplieron su función en el paso 2).
+  // - Las filas "Sí" (la caja completa) usan la disponibilidad
+  //   calculada arriba, ignorando lo que diga su propia columna
+  //   Disponible.
+  // - El resto (tomos sueltos normales) sigue igual que antes.
+  const listaFinal = [];
+  for(const c of porCodigo){
+    if(c.esSoloCaja) continue;
+    if(c.esCajaCompleta){
+      const disponibleCaja = disponiblePorGrupo.has(c.grupoCaja) ? disponiblePorGrupo.get(c.grupoCaja) : 0;
+      listaFinal.push(Object.assign({}, c, { disponible: disponibleCaja }));
+    } else {
+      listaFinal.push(c);
+    }
+  }
+
+  // Paso 4: agrupar por título + precio (misma regla que el bot de
   // Telegram — mismo título y mismo precio se suma, distinto precio se
   // separa).
   const buckets = new Map();
-  for(const c of porCodigo){
+  for(const c of listaFinal){
     const claveTitulo = c.nombre.toUpperCase();
     const clave = claveTitulo + "|" + c.precio;
     if(buckets.has(clave)){
@@ -476,6 +547,7 @@ function procesar(filas, mapaVentas){
       if(!b.sinopsis && c.sinopsis) b.sinopsis = c.sinopsis;
       if(!b.foto && c.foto) b.foto = c.foto;
       if(!b.tipo && c.tipo) b.tipo = c.tipo;
+      if(!b.idioma && c.idioma) b.idioma = c.idioma;
     } else {
       buckets.set(clave, {
         titulo: capitalizar(c.nombre),
@@ -486,12 +558,13 @@ function procesar(filas, mapaVentas){
         sinopsis: c.sinopsis,
         foto: c.foto,
         tipo: c.tipo,
+        idioma: c.idioma,
         disponible: c.disponible
       });
     }
   }
 
-  // Paso 3: por título, mostrar solo el precio más barato que tenga
+  // Paso 5: por título, mostrar solo el precio más barato que tenga
   // stock. Si ninguno tiene stock, se muestra agotado con el precio
   // más barato registrado (referencia para "Solicitar este libro").
   const porTitulo = new Map();
@@ -510,6 +583,7 @@ function procesar(filas, mapaVentas){
       if(!elegido.sinopsis && b.sinopsis) elegido.sinopsis = b.sinopsis;
       if(!elegido.foto && b.foto) elegido.foto = b.foto;
       if(!elegido.tipo && b.tipo) elegido.tipo = b.tipo;
+      if(!elegido.idioma && b.idioma) elegido.idioma = b.idioma;
     }
     resultado.push(elegido);
   }
@@ -525,6 +599,7 @@ function render(){
   const q = buscador.value.trim().toLowerCase();
   const g = filtroGenero.value;
   const t = filtroTipo.value;
+  const idi = filtroIdioma.value;
   const soloDisp = soloDisponibles.checked;
   const ord = orden.value;
 
@@ -532,6 +607,7 @@ function render(){
     if(q && !l.titulo.toLowerCase().includes(q)) return false;
     if(g !== "Todos los géneros" && l.genero !== g) return false;
     if(t !== "Todos" && l.tipo !== t) return false;
+    if(idi !== "Todos los idiomas" && l.idioma !== idi) return false;
     if(soloDisp && l.disponible <= 0) return false;
     return true;
   });
@@ -550,12 +626,13 @@ function render(){
   grid.innerHTML = lista.map((l,i)=>`
     <div class="card">
       ${l.foto
-        ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
+        ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
         : `<div class="foto-vacia">Letras &amp; Vinos</div>`}
       <div class="cuerpo">
         <div class="badges">
           <div class="genero-tag">${l.genero}</div>
           ${l.tipo ? `<div class="tipo-tag">${l.tipo}</div>` : ``}
+          ${l.idioma ? `<div class="idioma-tag">${l.idioma}</div>` : ``}
         </div>
         <h3>${l.titulo}</h3>
         ${l.sinopsis ? `<p class="sinopsis">${l.sinopsis}</p>` : ``}
@@ -649,6 +726,8 @@ Promise.all([
     LIBROS = procesar(parseCSV(textoInventario), mapaVentas);
     const generos = ["Todos los géneros", ...Array.from(new Set(LIBROS.map(l=>l.genero))).sort()];
     filtroGenero.innerHTML = generos.map(g=>`<option value="${g}">${g}</option>`).join("");
+    const idiomas = ["Todos los idiomas", ...Array.from(new Set(LIBROS.map(l=>l.idioma).filter(Boolean))).sort()];
+    filtroIdioma.innerHTML = idiomas.map(i=>`<option value="${i}">${i}</option>`).join("");
     render();
   })
   .catch(err => {
@@ -658,6 +737,7 @@ Promise.all([
 buscador.addEventListener("input", render);
 filtroGenero.addEventListener("change", render);
 filtroTipo.addEventListener("change", render);
+filtroIdioma.addEventListener("change", render);
 orden.addEventListener("change", render);
 soloDisponibles.addEventListener("change", render);
 </script>
