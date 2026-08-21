@@ -295,8 +295,43 @@
   }
   .modal .mensaje.exito{ color:#1F6E63; }
   .modal .mensaje.error{ color:var(--coral-osc); }
-  @media (max-width:480px){
-    .barra{padding:0.8rem;}
+  .btn-filtros{
+    display:none;
+    font-family:'Inter',sans-serif;
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--borgona);
+    background:#fff;
+    border:1px solid var(--linea);
+    border-radius:20px;
+    padding:0.5rem 0.9rem;
+    cursor:pointer;
+  }
+  .filtros-extra{ display:contents; }
+  @media (max-width:640px){
+    header{padding:1.6rem 1rem 1.2rem;}
+    .tabs{padding:0 1rem 0.8rem; gap:0.5rem;}
+    .tab{padding:0.5rem 1rem; font-size:0.8rem;}
+    .barra{
+      flex-direction:column;
+      align-items:stretch;
+      padding:0.8rem;
+      gap:0.6rem;
+    }
+    .barra input[type="text"]{min-width:0;width:100%;}
+    .btn-filtros{display:block; width:fit-content; margin:0 auto;}
+    .filtros-extra{
+      display:none;
+      width:100%;
+      flex-wrap:wrap;
+      gap:0.6rem;
+      justify-content:center;
+    }
+    .filtros-extra.abierto{display:flex;}
+    .filtros-extra select{flex:1 1 45%;}
+    .filtros-extra label.chk{flex:1 1 100%;justify-content:center;}
+    .grid{padding:1rem 1rem 2.5rem; gap:1rem;}
+    .card .foto, .card .foto-vacia{height:190px;}
   }
 </style>
 </head>
@@ -316,19 +351,22 @@
 <div id="vistaLibros">
   <div class="barra">
     <input type="text" id="buscador" placeholder="Buscar por título...">
-    <select id="filtroGenero"><option>Todos los géneros</option></select>
-    <select id="filtroTipo">
-      <option value="Todos">Pasta blanda y dura</option>
-      <option value="Pasta Blanda">Pasta blanda</option>
-      <option value="Pasta Dura">Pasta dura</option>
-    </select>
-    <select id="filtroIdioma"><option>Todos los idiomas</option></select>
-    <select id="orden">
-      <option value="alfa">Ordenar: Título A-Z</option>
-      <option value="precioAsc">Precio: menor a mayor</option>
-      <option value="precioDesc">Precio: mayor a menor</option>
-    </select>
-    <label class="chk"><input type="checkbox" id="soloDisponibles"> Solo disponibles</label>
+    <button type="button" class="btn-filtros" id="toggleFiltros">Filtros ⌄</button>
+    <div class="filtros-extra" id="filtrosExtra">
+      <select id="filtroGenero"><option>Todos los géneros</option></select>
+      <select id="filtroTipo">
+        <option value="Todos">Pasta blanda y dura</option>
+        <option value="Pasta Blanda">Pasta blanda</option>
+        <option value="Pasta Dura">Pasta dura</option>
+      </select>
+      <select id="filtroIdioma"><option>Todos los idiomas</option></select>
+      <select id="orden">
+        <option value="alfa">Ordenar: Título A-Z</option>
+        <option value="precioAsc">Precio: menor a mayor</option>
+        <option value="precioDesc">Precio: mayor a menor</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="soloDisponibles"> Solo disponibles</label>
+    </div>
   </div>
 
   <p class="contador" id="contador"></p>
@@ -424,15 +462,15 @@
 // ---------------------------------------------------------------------
 const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=15425874&single=true&output=csv";
 const URL_CSV_VENTAS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=670296559&single=true&output=csv";
-// Pendiente: pega aquí el link CSV publicado de la nueva pestaña de
-// "Inventario de Insumos" (Experiencia Literaria) cuando esté lista.
-const URL_CSV_INSUMOS = "PENDIENTE_PEGAR_URL_CSV_INSUMOS";
+const URL_CSV_INSUMOS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=1274059426&single=true&output=csv";
 const NUMERO_WHATSAPP = "50492461991";
 const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbz0dFtc_8wt70-JXk_HD7ZFofMNA_H4dLryxf0sxZjeg1CzOd86x295969rqW_cP4yd/exec";
 
 const grid = document.getElementById("grid");
 const contador = document.getElementById("contador");
 const buscador = document.getElementById("buscador");
+const toggleFiltros = document.getElementById("toggleFiltros");
+const filtrosExtra = document.getElementById("filtrosExtra");
 const filtroGenero = document.getElementById("filtroGenero");
 const filtroTipo = document.getElementById("filtroTipo");
 const filtroIdioma = document.getElementById("filtroIdioma");
@@ -891,6 +929,11 @@ if(URL_CSV_INSUMOS.indexOf("PENDIENTE") === 0){
 buscadorInsumos.addEventListener("input", renderInsumos);
 ordenInsumos.addEventListener("change", renderInsumos);
 soloDisponiblesInsumos.addEventListener("change", renderInsumos);
+
+toggleFiltros.addEventListener("click", () => {
+  const abierto = filtrosExtra.classList.toggle("abierto");
+  toggleFiltros.textContent = abierto ? "Filtros ⌃" : "Filtros ⌄";
+});
 
 tabLibros.addEventListener("click", () => {
   tabLibros.classList.add("activa");
