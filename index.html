@@ -716,8 +716,12 @@ function normalizarTitulo(t){
 function capitalizar(t){
   const minusculas = ['de','del','la','las','el','los','y','a','en','que','un','una','con','no','al','tu','su','mi','para','por','se'];
   return t.toLowerCase().split(' ').map((w,i)=>{
-    if(i>0 && minusculas.includes(w)) return w;
-    return w.charAt(0).toUpperCase() + w.slice(1);
+    const m = w.match(/^([^a-zà-ÿ]*)([a-zà-ÿ]?)(.*)$/i);
+    if(!m) return w;
+    const prefijo = m[1], primera = m[2], resto = m[3];
+    const palabra = primera + resto;
+    if(i>0 && minusculas.includes(palabra)) return prefijo + palabra;
+    return prefijo + primera.toUpperCase() + resto;
   }).join(' ');
 }
 
