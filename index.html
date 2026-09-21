@@ -280,8 +280,16 @@
   .card.card-equipo h3{margin-bottom:0.7rem;}
   .card.card-equipo .dato-evento{font-size:0.82rem;line-height:1.5;margin-bottom:0.9rem;}
   .card.card-equipo .frase-equipo{margin-top:1rem;}
-  .detalle-equipo{display:none;}
-  .detalle-equipo.abierto{display:block;}
+  /* Cerrada, la tarjeta deja ver las primeras líneas con un degradado que
+     insinúa que hay más; abierta, se muestra completa. */
+  .detalle-equipo{max-height:6.5rem;overflow:hidden;position:relative;}
+  .detalle-equipo::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:2.4rem;
+    background:linear-gradient(to bottom, rgba(255,255,255,0), #fff);
+    pointer-events:none;
+  }
+  .detalle-equipo.abierto{max-height:none;}
+  .detalle-equipo.abierto::after{display:none;}
   .btn-mas{
     margin-top:auto;align-self:flex-start;
     font-family:'Inter',sans-serif;font-size:0.78rem;font-weight:600;
@@ -1534,10 +1542,10 @@ function procesarEquipo(filas){
   return equipo;
 }
 
-// La tarjeta arranca cerrada: solo foto y nombre. Todo lo demás vive en
-// .detalle-equipo y se despliega con "Leer más", para que la grilla se vea
-// pareja y ordenada en vez de una pared de texto.
-function tarjetaEquipo(p, i){
+// La tarjeta arranca recortada: se ven las primeras líneas y el resto se
+// despliega con "Leer más", para que la grilla se vea pareja y ordenada en
+// vez de una pared de texto.
+function tarjetaEquipo(p){
   const fotoHTML = p.foto
     ? `<img class="foto-equipo" src="${p.foto}" alt="${p.nombre}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
     : `<div class="foto-vacia">Letras &amp; Vinos</div>`;
@@ -1546,7 +1554,7 @@ function tarjetaEquipo(p, i){
       ${fotoHTML}
       <div class="cuerpo">
         <h3>${p.nombre}</h3>
-        <div class="detalle-equipo" id="equipo-${i}">
+        <div class="detalle-equipo">
           ${enlaceLibro("📖 Libro favorito", p.libroFavorito)}
           ${p.sagaFavorita ? `<p class="dato-evento">🏰 Saga favorita: ${p.sagaFavorita}</p>` : ""}
           ${p.generoFavorito ? `<p class="dato-evento">🎭 Género favorito: ${p.generoFavorito}</p>` : ""}
@@ -1556,7 +1564,7 @@ function tarjetaEquipo(p, i){
           ${p.fraseFavorita ? `<p class="frase-equipo">“${p.fraseFavorita}”</p>` : ""}
           ${p.fraseLibro ? `<p class="frase-libro">— ${botonLibro(p.fraseLibro)}</p>` : ""}
         </div>
-        <button type="button" class="btn-mas" data-equipo="${i}">Leer más ▾</button>
+        <button type="button" class="btn-mas">Leer más ▾</button>
       </div>
     </div>
   `;
@@ -1565,7 +1573,7 @@ function tarjetaEquipo(p, i){
 function renderEquipo(){
   contadorQuienes.textContent = EQUIPO.length ? `Mostrando ${EQUIPO.length} de nuestro equipo` : "";
   gridQuienes.innerHTML = EQUIPO.length
-    ? `<div class="grid grid-equipo">${EQUIPO.map((p, i) => tarjetaEquipo(p, i)).join("")}</div>`
+    ? `<div class="grid grid-equipo">${EQUIPO.map(tarjetaEquipo).join("")}</div>`
     : `<div class="vacio">Todavía no hay perfiles del equipo para mostrar.</div>`;
 }
 
@@ -1915,13 +1923,16 @@ function abrirLibroDesdeEnlace(titulo){
 // cualquier re-render y a las fotos rotas que se reemplazan solas.
 function conectarGrilla(contenedor, selectorFoto){
   contenedor.addEventListener("click", (e) => {
+    // "Leer más" abre TODAS las tarjetas a la vez, no solo la que se tocó:
+    // si se abriera una sola, la de al lado quedaría estirada y vacía.
     const btnMas = e.target.closest(".btn-mas");
     if(btnMas){
-      const detalle = contenedor.querySelector("#equipo-" + btnMas.dataset.equipo);
-      if(detalle){
-        const abierto = detalle.classList.toggle("abierto");
-        btnMas.textContent = abierto ? "Ver menos ▴" : "Leer más ▾";
-      }
+      const propia = btnMas.closest(".card").querySelector(".detalle-equipo");
+      const abrir = !(propia && propia.classList.contains("abierto"));
+      contenedor.querySelectorAll(".detalle-equipo").forEach(d => d.classList.toggle("abierto", abrir));
+      contenedor.querySelectorAll(".btn-mas").forEach(b => {
+        b.textContent = abrir ? "Ver menos ▴" : "Leer más ▾";
+      });
       return;
     }
 
