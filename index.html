@@ -266,11 +266,25 @@
     text-align:center;font-size:0.68rem;color:var(--texto-suave);
     letter-spacing:0.3px;padding:0.35rem 0;background:var(--porcelana);margin:0;
   }
+  /* Quiénes Somos va de una tarjeta por fila, no dos: es la carta de
+     presentación de cada una y de dos en dos se veía apretada. La
+     especificidad extra (.grid.grid-equipo, .card.card-equipo) es a
+     propósito: gana sobre las reglas de móvil del final de la hoja. */
+  .grid.grid-equipo{
+    grid-template-columns:1fr;
+    max-width:520px;
+    gap:1.6rem;
+  }
   .foto-equipo{
-    width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top center;
+    width:100%;aspect-ratio:4/5;max-height:440px;
+    object-fit:cover;object-position:top center;
     display:block;background:var(--porcelana);cursor:zoom-in;
   }
-  .card-equipo .foto-vacia{aspect-ratio:3/4;}
+  .card-equipo .foto-vacia{aspect-ratio:4/5;}
+  .card.card-equipo .cuerpo{padding:1.3rem 1.4rem 1.5rem;}
+  .card.card-equipo h3{font-size:1.2rem;margin-bottom:1.1rem;}
+  .card.card-equipo .dato-evento{font-size:0.86rem;line-height:1.5;margin-bottom:1rem;}
+  .card.card-equipo .frase-equipo{margin-top:1.3rem;}
   .overlay-foto{
     display:none;position:fixed;inset:0;background:rgba(20,16,17,0.9);
     align-items:center;justify-content:center;padding:2rem;z-index:200;cursor:zoom-out;
@@ -290,7 +304,8 @@
   }
   .contador-foto{
     position:absolute;bottom:1.3rem;left:0;right:0;text-align:center;margin:0;
-    color:rgba(255,255,255,0.85);font-size:0.8rem;letter-spacing:0.5px;
+    color:rgba(255,255,255,0.88);font-size:0.75rem;
+    text-transform:uppercase;letter-spacing:1.5px;
   }
   .cerrar-foto{
     position:absolute;top:1.1rem;right:1.3rem;
@@ -320,6 +335,12 @@
     color:var(--texto);border-left:3px solid var(--borgona);
     padding-left:0.8rem;margin:0.5rem 0 0.2rem;line-height:1.5;
   }
+  /* El libro de donde salió la cita: fuera de las comillas y en negrita. */
+  .frase-libro{
+    font-size:0.85rem;color:var(--texto-suave);
+    padding-left:0.8rem;margin:0.5rem 0 0;
+  }
+  .frase-libro .enlace-libro{font-weight:700;}
   .cargando{
     text-align:center;color:var(--texto-suave);padding:4rem 1rem;
     font-family:'Fraunces',serif;font-style:italic;font-size:1rem;
@@ -645,8 +666,8 @@
       <input type="text" id="campoNombre" required>
       <label for="campoCelular">Tu número de celular</label>
       <input type="tel" id="campoCelular" required placeholder="9999-9999">
-      <label for="campoCiudad">Tu ciudad</label>
-      <input type="text" id="campoCiudad" required placeholder="Tegucigalpa">
+      <label for="campoDireccion">Tu ciudad o dirección de entrega</label>
+      <input type="text" id="campoDireccion" required placeholder="Tegucigalpa, col. Palmira">
       <button type="submit" class="btn activo" id="botonEnviar">Enviar solicitud</button>
       <p class="mensaje" id="modalMensaje"></p>
     </form>
@@ -753,7 +774,7 @@ const modalTitulo = document.getElementById("modalTitulo");
 const formSolicitud = document.getElementById("formSolicitud");
 const campoNombre = document.getElementById("campoNombre");
 const campoCelular = document.getElementById("campoCelular");
-const campoCiudad = document.getElementById("campoCiudad");
+const campoDireccion = document.getElementById("campoDireccion");
 const modalAyuda = document.getElementById("modalAyuda");
 const botonEnviar = document.getElementById("botonEnviar");
 const modalMensaje = document.getElementById("modalMensaje");
@@ -783,6 +804,7 @@ const pagoFooter = document.getElementById("pagoFooter");
 let LIBROS = [];
 let INSUMOS = [];
 let EVENTOS = { proximos: [], pasados: [] };
+let FOTOS_VISOR = [];
 let EQUIPO = [];
 let libroActivo = null;
 let CARRITO = [];
@@ -1388,10 +1410,14 @@ function procesarEventos(filas){
 // tarjeta. La ficha completa se arma al hacer click, no al dibujar: así da
 // igual que los libros del inventario carguen después que los eventos o el
 // equipo, y si el título no existe en el inventario igual se puede solicitar.
+function botonLibro(titulo){
+  const escapado = (titulo || "").replace(/"/g, "&quot;");
+  return `<button type="button" class="enlace-libro" data-libro="${escapado}">${titulo}</button>`;
+}
+
 function enlaceLibro(etiqueta, titulo){
   if(!titulo) return "";
-  const escapado = titulo.replace(/"/g, "&quot;");
-  return `<p class="dato-evento">${etiqueta}: <button type="button" class="enlace-libro" data-libro="${escapado}">${titulo}</button></p>`;
+  return `<p class="dato-evento">${etiqueta}: ${botonLibro(titulo)}</p>`;
 }
 
 // Igual que enlaceLibro pero contra la Experiencia Literaria (vinos y
@@ -1404,10 +1430,16 @@ function enlaceInsumo(etiqueta, nombre){
 }
 
 function tarjetaEvento(ev){
-  const fotos = [ev.fotoLetrasVinos, ev.fotoDireccion, ev.fotoComunidad].filter(Boolean);
+  // Cada foto lleva su etiqueta (quiénes somos / quién dirigió / la
+  // comunidad) para poder mostrarla cuando se ve en grande.
+  const fotos = [
+    { src: ev.fotoLetrasVinos, etiqueta: "Letras y Vinos" },
+    { src: ev.fotoDireccion, etiqueta: "Dirección" },
+    { src: ev.fotoComunidad, etiqueta: "Comunidad" },
+  ].filter(f => f.src);
   const fotosHTML = fotos.length
     ? `<div class="fotos-evento">${fotos.map(f =>
-        `<img class="foto-evento" src="${f}" alt="${ev.nombre}" loading="lazy" decoding="async" onerror="this.style.display='none'">`
+        `<img class="foto-evento" src="${f.src}" alt="${ev.nombre}" data-etiqueta="${f.etiqueta}" loading="lazy" decoding="async" onerror="this.style.display='none'">`
       ).join("")}</div>${fotos.length > 1 ? `<p class="pista-fotos">← desliza para ver las ${fotos.length} fotos · toca una para ampliar →</p>` : ""}`
     : `<div class="foto-vacia">Letras &amp; Vinos</div>`;
   const estadoHTML = ev.esProximo
@@ -1447,6 +1479,31 @@ function renderEventos(){
 
 // ---------- QUIÉNES SOMOS ----------
 
+// Quita las comillas que el texto ya traiga escritas, para que el catálogo
+// ponga las suyas una sola vez y no queden dobles.
+function limpiarComillas(texto){
+  return (texto || "").trim()
+    .replace(/^["“”«»']+/, "")
+    .replace(/["“”«»']+$/, "")
+    .trim();
+}
+
+// La frase favorita se escribe en el Sheet separando la cita del libro con
+// una barra:   —Y no lo harás por algo tan banal… | Alas de Hierro
+// Así la cita puede llevar comillas, guiones y puntos adentro sin que el
+// catálogo tenga que adivinar dónde termina y dónde empieza el título.
+// Si no hay barra, se muestra todo como cita y ya.
+function partirFrase(texto){
+  const crudo = (texto || "").trim();
+  if(!crudo) return { frase: "", libro: "" };
+  const corte = crudo.lastIndexOf("|");
+  if(corte === -1) return { frase: limpiarComillas(crudo), libro: "" };
+  return {
+    frase: limpiarComillas(crudo.slice(0, corte)),
+    libro: normalizarTitulo(crudo.slice(corte + 1)),
+  };
+}
+
 function procesarEquipo(filas){
   const equipo = [];
   for(let i = 1; i < filas.length; i++){
@@ -1456,13 +1513,15 @@ function procesarEquipo(filas){
     if(!nombre) continue;
     const mostrarRaw = f.length > 9 ? normalizarPlano(f[9]) : "si";
     if(mostrarRaw === "no") continue;
+    const frase = partirFrase(f[5]);
     equipo.push({
       nombre: capitalizar(nombre),
       foto: (f[1] || "").trim(),
       libroFavorito: normalizarTitulo(f[2] || ""),
       sagaFavorita: normalizarTitulo(f[3] || ""),
       generoFavorito: normalizarTitulo(f[4] || ""),
-      fraseFavorita: (f[5] || "").trim(),
+      fraseFavorita: frase.frase,
+      fraseLibro: frase.libro,
       maridaje: (f[6] || "").trim(),
       leyendoAhora: normalizarTitulo(f[7] || ""),
       recomendacionMes: normalizarTitulo(f[8] || ""),
@@ -1486,7 +1545,8 @@ function tarjetaEquipo(p){
         ${enlaceLibro("📚 Leyendo ahora", p.leyendoAhora)}
         ${enlaceLibro("⭐ Recomendación del mes", p.recomendacionMes)}
         ${enlaceInsumo("🍷 Maridaje favorito", p.maridaje)}
-        ${p.fraseFavorita ? `<p class="frase-equipo">"${p.fraseFavorita}"</p>` : ""}
+        ${p.fraseFavorita ? `<p class="frase-equipo">“${p.fraseFavorita}”</p>` : ""}
+        ${p.fraseLibro ? `<p class="frase-libro">— ${botonLibro(p.fraseLibro)}</p>` : ""}
       </div>
     </div>
   `;
@@ -1495,7 +1555,7 @@ function tarjetaEquipo(p){
 function renderEquipo(){
   contadorQuienes.textContent = EQUIPO.length ? `Mostrando ${EQUIPO.length} de nuestro equipo` : "";
   gridQuienes.innerHTML = EQUIPO.length
-    ? `<div class="grid">${EQUIPO.map(tarjetaEquipo).join("")}</div>`
+    ? `<div class="grid grid-equipo">${EQUIPO.map(tarjetaEquipo).join("")}</div>`
     : `<div class="vacio">Todavía no hay perfiles del equipo para mostrar.</div>`;
 }
 
@@ -1591,7 +1651,7 @@ function abrirModal(libro, modo){
     : "Este libro está agotado por ahora. Déjanos tus datos y te avisamos apenas vuelva a estar disponible.";
   campoNombre.value = "";
   campoCelular.value = "";
-  campoCiudad.value = "";
+  campoDireccion.value = "";
   modalMensaje.textContent = "";
   modalMensaje.className = "mensaje";
   botonEnviar.disabled = false;
@@ -1720,7 +1780,7 @@ formSolicitud.addEventListener("submit", function(e){
     autor: libroActivo.autor || "",
     nombre: campoNombre.value.trim(),
     celular: campoCelular.value.trim(),
-    ciudad: campoCiudad.value.trim()
+    direccion: campoDireccion.value.trim()
   };
 
   fetch(URL_APPS_SCRIPT, {
@@ -1780,8 +1840,9 @@ grid.addEventListener("click", (e) => {
 // todo. Recibe la lista completa de fotos y cuál se tocó, para poder
 // deslizarlas todas ahí adentro sin tener que cerrar y volver a abrir.
 function abrirFotoAmpliada(fotos, indice, alt){
+  FOTOS_VISOR = fotos;
   const texto = (alt || "").replace(/"/g, "&quot;");
-  carruselFoto.innerHTML = fotos.map(f => `<img src="${f}" alt="${texto}">`).join("");
+  carruselFoto.innerHTML = fotos.map(f => `<img src="${f.src}" alt="${texto}">`).join("");
   overlayFoto.classList.add("abierto");
   // El scroll se fija después de pintar, cuando el carrusel ya tiene ancho.
   requestAnimationFrame(() => {
@@ -1790,18 +1851,23 @@ function abrirFotoAmpliada(fotos, indice, alt){
   });
 }
 
+// Debajo de la foto ampliada va su etiqueta (LETRAS Y VINOS / DIRECCIÓN /
+// COMUNIDAD) y, si hay varias, en cuál de todas va.
 function actualizarContadorFoto(){
-  const total = carruselFoto.children.length;
-  if(total < 2){ contadorFoto.textContent = ""; return; }
+  const total = FOTOS_VISOR.length;
+  if(!total){ contadorFoto.textContent = ""; return; }
   const ancho = carruselFoto.clientWidth || 1;
-  const actual = Math.round(carruselFoto.scrollLeft / ancho) + 1;
-  contadorFoto.textContent = `${Math.min(actual, total)} / ${total} · desliza para ver las demás`;
+  const i = Math.min(Math.round(carruselFoto.scrollLeft / ancho), total - 1);
+  const etiqueta = FOTOS_VISOR[i].etiqueta || "";
+  const cuenta = total > 1 ? `${i + 1} / ${total}` : "";
+  contadorFoto.textContent = [etiqueta, cuenta].filter(Boolean).join(" · ");
 }
 
 function cerrarFotoAmpliada(){
   overlayFoto.classList.remove("abierto");
   carruselFoto.innerHTML = "";
   contadorFoto.textContent = "";
+  FOTOS_VISOR = [];
 }
 
 overlayFoto.addEventListener("click", cerrarFotoAmpliada);
@@ -1818,7 +1884,11 @@ document.addEventListener("keydown", (e) => {
 function ampliarDesdeGrupo(foto, selector){
   const grupo = Array.from(foto.parentElement.querySelectorAll(selector));
   const indice = Math.max(0, grupo.indexOf(foto));
-  abrirFotoAmpliada(grupo.map(f => f.src), indice, foto.alt);
+  abrirFotoAmpliada(
+    grupo.map(f => ({ src: f.src, etiqueta: f.dataset.etiqueta || "" })),
+    indice,
+    foto.alt
+  );
 }
 
 // Un enlace de libro decide al momento del click: si el título existe en el
