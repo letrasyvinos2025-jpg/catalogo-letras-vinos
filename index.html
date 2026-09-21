@@ -226,6 +226,8 @@
   }
   .estado.disp{background:var(--azul-hielo);color:#1F6E63;}
   .estado.agot{background:var(--porcelana);color:var(--coral-osc);}
+  .estado.proximo{background:var(--azul-hielo);color:#1F6E63;}
+  .estado.pasado{background:var(--porcelana);color:var(--texto-suave);}
   .btn{
     margin-top:auto;
     text-align:center;
@@ -252,6 +254,36 @@
   .btn.solicitar:hover{background:var(--rosa-niebla);}
   .vacio{
     text-align:center;color:var(--texto-suave);padding:3rem 1rem;font-size:0.95rem;
+  }
+  .titulo-seccion{
+    font-family:'Fraunces',serif;font-weight:500;font-size:1.15rem;
+    color:var(--texto);text-align:center;margin:1.8rem 0 0;
+  }
+  .fotos-evento{display:flex;background:var(--porcelana);}
+  .foto-evento{flex:1;min-width:0;aspect-ratio:4/3;object-fit:cover;display:block;}
+  .dato-evento{font-size:0.8rem;color:var(--texto-suave);margin:0 0 0.4rem;line-height:1.45;}
+  .dato-evento strong{color:var(--texto);font-weight:600;}
+  .acciones-evento{margin-top:auto;display:flex;flex-direction:column;gap:0.5rem;}
+  .acciones-evento .btn{margin-top:0;}
+  .libro-evento{
+    display:flex;align-items:center;gap:0.7rem;width:100%;text-align:left;
+    background:var(--porcelana);border:1px solid var(--linea);border-radius:10px;
+    padding:0.6rem;margin:0.2rem 0 0.7rem;cursor:pointer;font-family:'Inter',sans-serif;
+  }
+  .libro-evento:hover{background:var(--rosa-niebla);}
+  .foto-libro-evento{
+    width:52px;height:70px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#fff;
+  }
+  .libro-evento-info{display:flex;flex-direction:column;gap:0.15rem;min-width:0;}
+  .libro-evento-info strong{
+    font-family:'Fraunces',serif;font-weight:500;font-size:0.9rem;color:var(--texto);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .libro-evento-info .ver-libro{font-size:0.75rem;color:var(--borgona);font-weight:600;}
+  .frase-equipo{
+    font-family:'Fraunces',serif;font-style:italic;font-size:0.92rem;
+    color:var(--texto);border-left:3px solid var(--borgona);
+    padding-left:0.8rem;margin:0.5rem 0 0.2rem;line-height:1.5;
   }
   .cargando{
     text-align:center;color:var(--texto-suave);padding:4rem 1rem;
@@ -467,6 +499,8 @@
 <div class="tabs">
   <button type="button" class="tab activa" id="tabLibros">Libros</button>
   <button type="button" class="tab" id="tabInsumos">Experiencia Literaria</button>
+  <button type="button" class="tab" id="tabEventos">Eventos</button>
+  <button type="button" class="tab" id="tabQuienes">Quiénes Somos</button>
 </div>
 
 <div id="vistaLibros">
@@ -509,6 +543,15 @@
   <p class="contador" id="contadorInsumos"></p>
 
   <div class="grid" id="gridInsumos"><div class="cargando">Cargando…</div></div>
+</div>
+
+<div id="vistaEventos" style="display:none;">
+  <div id="gridEventos"><div class="cargando">Cargando eventos…</div></div>
+</div>
+
+<div id="vistaQuienes" style="display:none;">
+  <p class="contador" id="contadorQuienes"></p>
+  <div id="gridQuienes"><div class="cargando">Cargando…</div></div>
 </div>
 
 <button type="button" class="boton-carrito" id="botonCarrito" aria-label="Ver carrito">
@@ -615,6 +658,11 @@
 const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=15425874&single=true&output=csv";
 const URL_CSV_VENTAS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=670296559&single=true&output=csv";
 const URL_CSV_INSUMOS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=1274059426&single=true&output=csv";
+// Pestaña "Eventos" del Sheet, publicada tal cual (sin QUERY, porque no tiene
+// ninguna columna sensible que excluir).
+const URL_CSV_EVENTOS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=1466840266&single=true&output=csv";
+// Pestaña "Quiénes Somos" del Sheet, publicada igual que Eventos.
+const URL_CSV_QUIENES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjjfjTYsQEQ7rEAPX8I7VRqsS0lksYUPAJl_Zdv7JG9Geeq5si-yqmKXAx-2P_t7qglB2TBkJj0RpM/pub?gid=1684678603&single=true&output=csv";
 const NUMERO_WHATSAPP = "50492461991";
 const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbz0dFtc_8wt70-JXk_HD7ZFofMNA_H4dLryxf0sxZjeg1CzOd86x295969rqW_cP4yd/exec";
 // Link de Pago de TodoPago. Mientras diga "PENDIENTE" el botón de pago
@@ -641,8 +689,16 @@ const ordenInsumos = document.getElementById("ordenInsumos");
 const soloDisponiblesInsumos = document.getElementById("soloDisponiblesInsumos");
 const tabLibros = document.getElementById("tabLibros");
 const tabInsumos = document.getElementById("tabInsumos");
+const tabEventos = document.getElementById("tabEventos");
+const tabQuienes = document.getElementById("tabQuienes");
 const vistaLibros = document.getElementById("vistaLibros");
 const vistaInsumos = document.getElementById("vistaInsumos");
+const vistaEventos = document.getElementById("vistaEventos");
+const vistaQuienes = document.getElementById("vistaQuienes");
+
+const gridEventos = document.getElementById("gridEventos");
+const gridQuienes = document.getElementById("gridQuienes");
+const contadorQuienes = document.getElementById("contadorQuienes");
 
 const overlay = document.getElementById("overlay");
 const modalGenero = document.getElementById("modalGenero");
@@ -677,6 +733,8 @@ const pagoFooter = document.getElementById("pagoFooter");
 
 let LIBROS = [];
 let INSUMOS = [];
+let EVENTOS = { proximos: [], pasados: [] };
+let EQUIPO = [];
 let libroActivo = null;
 let CARRITO = [];
 let listaVisible = []; // último resultado filtrado que se dibujó en #grid
@@ -1177,6 +1235,223 @@ function renderInsumos(){
   });
 }
 
+// ---------- EVENTOS ----------
+
+function parsearFechaEvento(texto){
+  const t = (texto || "").trim();
+  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return null;
+  const dia = parseInt(m[1], 10), mes = parseInt(m[2], 10), anio = parseInt(m[3], 10);
+  if(mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const fecha = new Date(anio, mes - 1, dia);
+  return isNaN(fecha.getTime()) ? null : fecha;
+}
+
+function formatearFechaEvento(fecha){
+  return fecha.toLocaleDateString('es-HN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+
+// "N/A" (con o sin variantes de mayúscula) se trata como vacío — así los
+// eventos internos (ej. Feria del Libro) no muestran "N/A" como si fuera
+// un título real.
+function valorOVacio(texto){
+  const limpio = normalizarTitulo(texto || "");
+  const plano = normalizarPlano(limpio);
+  return (plano === "n/a" || plano === "na") ? "" : limpio;
+}
+
+// Busca el libro real dentro de LIBROS (la misma lista que usa la pestaña
+// Libros) por título, sin importar mayúsculas ni tildes. Así el evento
+// muestra la foto/sinopsis/precio/disponibilidad REALES y siempre
+// actualizadas, en vez de que alguien tenga que retipear la sinopsis en
+// la pestaña Eventos y arriesgarse a que quede desactualizada.
+function buscarLibroPorTitulo(titulo){
+  const clave = normalizarPlano(titulo || "");
+  if(!clave) return null;
+  return LIBROS.find(l => normalizarPlano(l.titulo) === clave) || null;
+}
+
+function mensajeWhatsappEvento(ev){
+  let texto = `Hola, quiero reservar mi lugar para el evento "${ev.nombre}"`;
+  if(ev.fecha) texto += ` del ${formatearFechaEvento(ev.fecha)}`;
+  else if(ev.fechaPendiente) texto += ` (fecha por confirmar)`;
+  if(ev.horario && normalizarPlano(ev.horario) !== "pendiente") texto += ` a las ${ev.horario}`;
+  texto += ".";
+  return `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(texto)}`;
+}
+
+function procesarEventos(filas){
+  const hoy = new Date();
+  hoy.setHours(0,0,0,0);
+  const eventos = [];
+  for(let i = 1; i < filas.length; i++){
+    const f = filas[i];
+    if(!f || f.length < 2) continue;
+    const nombre = normalizarTitulo(f[0] || "");
+    if(!nombre) continue;
+    const mostrarRaw = f.length > 10 ? normalizarPlano(f[10]) : "si";
+    if(mostrarRaw === "no") continue;
+    const fechaTexto = (f[1] || "").trim();
+    const fechaPendiente = normalizarPlano(fechaTexto) === "pendiente";
+    const fecha = parsearFechaEvento(fechaTexto);
+    eventos.push({
+      nombre: capitalizar(nombre),
+      fecha,
+      fechaPendiente,
+      horario: (f[2] || "").trim(),
+      lugar: (f[3] || "").trim(),
+      dirigidoPor: (f[4] || "").trim(),
+      libro: valorOVacio(f[5]),
+      sinopsis: valorOVacio(f[6]),
+      fotoLetrasVinos: (f[7] || "").trim(),
+      fotoDireccion: (f[8] || "").trim(),
+      fotoComunidad: (f[9] || "").trim(),
+      esProximo: fechaPendiente || !!(fecha && fecha.getTime() >= hoy.getTime()),
+    });
+  }
+  const proximos = eventos.filter(e => e.esProximo).sort((a,b) => (a.fecha || 0) - (b.fecha || 0));
+  const pasados = eventos.filter(e => !e.esProximo).sort((a,b) => {
+    if(!a.fecha && !b.fecha) return 0;
+    if(!a.fecha) return 1;
+    if(!b.fecha) return -1;
+    return b.fecha - a.fecha;
+  });
+  return { proximos, pasados };
+}
+
+// Si el título coincide con un libro real de LIBROS, se muestra su foto y
+// sinopsis reales (con precio/disponibilidad al día) y, al tocarlo, abre
+// exactamente el mismo modal de detalle que en la pestaña Libros — con su
+// botón de Agregar al carrito o Solicitar. Si no hay coincidencia (libro
+// descontinuado, evento sin libro, etc.), se muestra el texto tal cual se
+// escribió en la pestaña Eventos, sin botón de compra.
+function bloqueLibroEvento(ev){
+  if(!ev.libro) return "";
+  const libro = buscarLibroPorTitulo(ev.libro);
+  if(!libro){
+    return `
+      <p class="dato-evento">📖 <strong>${ev.libro}</strong></p>
+      ${ev.sinopsis ? `<p class="sinopsis">${ev.sinopsis}</p>` : ""}
+    `;
+  }
+  const escapado = libro.titulo.replace(/"/g, "&quot;");
+  const fotoHTML = libro.foto
+    ? `<img class="foto-libro-evento" src="${libro.foto}" alt="${libro.titulo}" loading="lazy" decoding="async" onerror="this.style.display='none'">`
+    : "";
+  return `
+    <button type="button" class="libro-evento" data-libro="${escapado}">
+      ${fotoHTML}
+      <span class="libro-evento-info">
+        <strong>${libro.titulo}</strong>
+        <span class="ver-libro">Ver libro y comprar →</span>
+      </span>
+    </button>
+  `;
+}
+
+function tarjetaEvento(ev){
+  const fotos = [ev.fotoLetrasVinos, ev.fotoDireccion, ev.fotoComunidad].filter(Boolean);
+  const fotosHTML = fotos.length
+    ? `<div class="fotos-evento">${fotos.map(f =>
+        `<img class="foto-evento" src="${f}" alt="${ev.nombre}" loading="lazy" decoding="async" onerror="this.style.display='none'">`
+      ).join("")}</div>`
+    : `<div class="foto-vacia">Letras &amp; Vinos</div>`;
+  const estadoHTML = ev.esProximo
+    ? `<span class="estado proximo">Próximo</span>`
+    : `<span class="estado pasado">Pasado</span>`;
+  const fechaTexto = ev.fecha ? formatearFechaEvento(ev.fecha) : (ev.fechaPendiente ? "Fecha por confirmar" : "");
+  return `
+    <div class="card">
+      ${fotosHTML}
+      <div class="cuerpo">
+        <div class="badges">${estadoHTML}</div>
+        <h3>${ev.nombre}</h3>
+        ${fechaTexto || ev.horario ? `<p class="dato-evento">🗓️ ${fechaTexto}${fechaTexto && ev.horario ? " · " : ""}${ev.horario}</p>` : ""}
+        ${ev.lugar ? `<p class="dato-evento">📍 ${ev.lugar}</p>` : ""}
+        ${ev.dirigidoPor ? `<p class="dato-evento">🎤 Dirigido por ${ev.dirigidoPor}</p>` : ""}
+        ${bloqueLibroEvento(ev)}
+        <div class="acciones-evento">
+          ${ev.esProximo ? `<a class="btn activo" href="${mensajeWhatsappEvento(ev)}" target="_blank" rel="noopener">Reservar mi lugar</a>` : ""}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEventos(){
+  const partes = [];
+  partes.push(`<h3 class="titulo-seccion">📅 Próximos eventos</h3>`);
+  partes.push(EVENTOS.proximos.length
+    ? `<div class="grid">${EVENTOS.proximos.map(tarjetaEvento).join("")}</div>`
+    : `<p class="vacio">Todavía no hay próximos eventos agendados.</p>`);
+  partes.push(`<h3 class="titulo-seccion">🕰️ Eventos pasados</h3>`);
+  partes.push(EVENTOS.pasados.length
+    ? `<div class="grid">${EVENTOS.pasados.map(tarjetaEvento).join("")}</div>`
+    : `<p class="vacio">Todavía no hay eventos pasados para mostrar.</p>`);
+  gridEventos.innerHTML = partes.join("");
+
+  gridEventos.querySelectorAll(".libro-evento").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const libro = buscarLibroPorTitulo(btn.dataset.libro);
+      if(libro) abrirDetalle(libro);
+    });
+  });
+}
+
+// ---------- QUIÉNES SOMOS ----------
+
+function procesarEquipo(filas){
+  const equipo = [];
+  for(let i = 1; i < filas.length; i++){
+    const f = filas[i];
+    if(!f || f.length < 1) continue;
+    const nombre = normalizarTitulo(f[0] || "");
+    if(!nombre) continue;
+    const mostrarRaw = f.length > 9 ? normalizarPlano(f[9]) : "si";
+    if(mostrarRaw === "no") continue;
+    equipo.push({
+      nombre: capitalizar(nombre),
+      foto: (f[1] || "").trim(),
+      libroFavorito: normalizarTitulo(f[2] || ""),
+      sagaFavorita: normalizarTitulo(f[3] || ""),
+      generoFavorito: normalizarTitulo(f[4] || ""),
+      fraseFavorita: (f[5] || "").trim(),
+      maridaje: (f[6] || "").trim(),
+      leyendoAhora: normalizarTitulo(f[7] || ""),
+      recomendacionMes: normalizarTitulo(f[8] || ""),
+    });
+  }
+  return equipo;
+}
+
+function tarjetaEquipo(p){
+  const fotoHTML = p.foto
+    ? `<img class="foto" src="${p.foto}" alt="${p.nombre}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
+    : `<div class="foto-vacia">Letras &amp; Vinos</div>`;
+  return `
+    <div class="card">
+      ${fotoHTML}
+      <div class="cuerpo">
+        <h3>${p.nombre}</h3>
+        ${p.libroFavorito ? `<p class="dato-evento">📖 Libro favorito: <strong>${p.libroFavorito}</strong></p>` : ""}
+        ${p.sagaFavorita ? `<p class="dato-evento">🏰 Saga favorita: ${p.sagaFavorita}</p>` : ""}
+        ${p.generoFavorito ? `<p class="dato-evento">🎭 Género favorito: ${p.generoFavorito}</p>` : ""}
+        ${p.leyendoAhora ? `<p class="dato-evento">📚 Leyendo ahora: ${p.leyendoAhora}</p>` : ""}
+        ${p.recomendacionMes ? `<p class="dato-evento">⭐ Recomendación del mes: ${p.recomendacionMes}</p>` : ""}
+        ${p.maridaje ? `<p class="dato-evento">🍷 Maridaje favorito: ${p.maridaje}</p>` : ""}
+        ${p.fraseFavorita ? `<p class="frase-equipo">"${p.fraseFavorita}"</p>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderEquipo(){
+  contadorQuienes.textContent = EQUIPO.length ? `Mostrando ${EQUIPO.length} de nuestro equipo` : "";
+  gridQuienes.innerHTML = EQUIPO.length
+    ? `<div class="grid">${EQUIPO.map(tarjetaEquipo).join("")}</div>`
+    : `<div class="vacio">Todavía no hay perfiles del equipo para mostrar.</div>`;
+}
+
 function render(){
   const q = buscador.value.trim().toLowerCase();
   const g = filtroGenero.value;
@@ -1382,6 +1657,10 @@ Promise.all([
     filtroIdioma.innerHTML = idiomas.map(i=>`<option value="${i}">${i}</option>`).join("");
     sincronizarCarritoConInventario("libro", LIBROS);
     render();
+    // Los eventos pueden haber cargado antes que los libros (o al revés);
+    // se vuelven a dibujar aquí para que el enlace "Ver libro y comprar"
+    // encuentre la coincidencia sin importar el orden de llegada.
+    if(EVENTOS.proximos.length || EVENTOS.pasados.length) renderEventos();
   })
   .catch(err => {
     grid.innerHTML = `<div class="vacio">No pudimos cargar el catálogo en este momento. Intenta de nuevo en unos minutos.</div>`;
@@ -1429,17 +1708,50 @@ toggleFiltros.addEventListener("click", () => {
   toggleFiltros.textContent = abierto ? "Filtros ⌃" : "Filtros ⌄";
 });
 
-tabLibros.addEventListener("click", () => {
-  tabLibros.classList.add("activa");
-  tabInsumos.classList.remove("activa");
-  vistaLibros.style.display = "";
-  vistaInsumos.style.display = "none";
-});
-tabInsumos.addEventListener("click", () => {
-  tabInsumos.classList.add("activa");
-  tabLibros.classList.remove("activa");
-  vistaInsumos.style.display = "";
-  vistaLibros.style.display = "none";
+if(URL_CSV_EVENTOS.indexOf("PENDIENTE") === 0){
+  gridEventos.innerHTML = `<div class="vacio">La sección de Eventos todavía no está activada.</div>`;
+} else {
+  fetch(URL_CSV_EVENTOS)
+    .then(r => { if(!r.ok) throw new Error("No se pudo leer eventos"); return r.text(); })
+    .then(texto => {
+      EVENTOS = procesarEventos(parseCSV(texto));
+      renderEventos();
+    })
+    .catch(err => {
+      gridEventos.innerHTML = `<div class="vacio">No pudimos cargar los eventos en este momento.</div>`;
+    });
+}
+
+if(URL_CSV_QUIENES.indexOf("PENDIENTE") === 0){
+  gridQuienes.innerHTML = `<div class="vacio">La sección Quiénes Somos todavía no está activada.</div>`;
+} else {
+  fetch(URL_CSV_QUIENES)
+    .then(r => { if(!r.ok) throw new Error("No se pudo leer el equipo"); return r.text(); })
+    .then(texto => {
+      EQUIPO = procesarEquipo(parseCSV(texto));
+      renderEquipo();
+    })
+    .catch(err => {
+      gridQuienes.innerHTML = `<div class="vacio">No pudimos cargar esta sección en este momento.</div>`;
+    });
+}
+
+// Cuatro pestañas, una sola función de activación: apaga todas y prende
+// solo la que corresponde al botón clickeado, por índice.
+const PESTANAS = [
+  { tab: tabLibros, vista: vistaLibros },
+  { tab: tabInsumos, vista: vistaInsumos },
+  { tab: tabEventos, vista: vistaEventos },
+  { tab: tabQuienes, vista: vistaQuienes },
+];
+PESTANAS.forEach(({ tab, vista }) => {
+  tab.addEventListener("click", () => {
+    PESTANAS.forEach(({ tab: t, vista: v }) => {
+      const activa = t === tab;
+      t.classList.toggle("activa", activa);
+      v.style.display = activa ? "" : "none";
+    });
+  });
 });
 </script>
 
