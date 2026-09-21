@@ -259,8 +259,46 @@
     font-family:'Fraunces',serif;font-weight:500;font-size:1.15rem;
     color:var(--texto);text-align:center;margin:1.8rem 0 0;
   }
-  .fotos-evento{display:flex;background:var(--porcelana);}
-  .foto-evento{flex:1;min-width:0;aspect-ratio:4/3;object-fit:cover;display:block;}
+  .fotos-evento{
+    display:flex;background:var(--porcelana);
+    overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .fotos-evento::-webkit-scrollbar{display:none;}
+  .foto-evento{
+    flex:0 0 100%;width:100%;aspect-ratio:4/3;object-fit:cover;display:block;
+    scroll-snap-align:start;cursor:zoom-in;
+  }
+  .pista-fotos{
+    text-align:center;font-size:0.68rem;color:var(--texto-suave);
+    letter-spacing:0.3px;padding:0.35rem 0;background:var(--porcelana);margin:0;
+  }
+  .foto-equipo{
+    width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top center;
+    display:block;background:var(--porcelana);cursor:zoom-in;
+  }
+  .card-equipo .foto-vacia{aspect-ratio:3/4;}
+  .overlay-foto{
+    display:none;position:fixed;inset:0;background:rgba(20,16,17,0.9);
+    align-items:center;justify-content:center;padding:2rem;z-index:200;cursor:zoom-out;
+  }
+  .overlay-foto.abierto{display:flex;}
+  .overlay-foto img{
+    max-width:100%;max-height:100%;border-radius:10px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.5);cursor:default;
+  }
+  .cerrar-foto{
+    position:absolute;top:1.1rem;right:1.3rem;
+    background:rgba(255,255,255,0.15);border:none;color:#fff;
+    font-size:1.6rem;line-height:1;cursor:pointer;
+    width:42px;height:42px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .cerrar-foto:hover{background:rgba(255,255,255,0.28);}
+  .etiqueta-libro-evento{
+    font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;
+    color:var(--texto-suave);font-weight:600;
+  }
   .dato-evento{font-size:0.8rem;color:var(--texto-suave);margin:0 0 0.4rem;line-height:1.45;}
   .dato-evento strong{color:var(--texto);font-weight:600;}
   .acciones-evento{margin-top:auto;display:flex;flex-direction:column;gap:0.5rem;}
@@ -497,13 +535,13 @@
 </header>
 
 <div class="tabs">
-  <button type="button" class="tab activa" id="tabLibros">Libros</button>
+  <button type="button" class="tab activa" id="tabQuienes">Quiénes Somos</button>
+  <button type="button" class="tab" id="tabLibros">Libros</button>
   <button type="button" class="tab" id="tabInsumos">Experiencia Literaria</button>
   <button type="button" class="tab" id="tabEventos">Eventos</button>
-  <button type="button" class="tab" id="tabQuienes">Quiénes Somos</button>
 </div>
 
-<div id="vistaLibros">
+<div id="vistaLibros" style="display:none;">
   <div class="barra">
     <input type="text" id="buscador" placeholder="Buscar por título...">
     <button type="button" class="btn-filtros" id="toggleFiltros">Filtros ⌄</button>
@@ -549,7 +587,7 @@
   <div id="gridEventos"><div class="cargando">Cargando eventos…</div></div>
 </div>
 
-<div id="vistaQuienes" style="display:none;">
+<div id="vistaQuienes">
   <p class="contador" id="contadorQuienes"></p>
   <div id="gridQuienes"><div class="cargando">Cargando…</div></div>
 </div>
@@ -592,6 +630,11 @@
     <div class="fila-precio" id="detallePrecioFila"></div>
     <div id="detalleAccion"></div>
   </div>
+</div>
+
+<div class="overlay-foto" id="overlayFoto">
+  <button class="cerrar-foto" id="cerrarFoto" aria-label="Cerrar">×</button>
+  <img id="fotoAmpliada" alt="">
 </div>
 
 <div class="overlay" id="overlay">
@@ -699,6 +742,10 @@ const vistaQuienes = document.getElementById("vistaQuienes");
 const gridEventos = document.getElementById("gridEventos");
 const gridQuienes = document.getElementById("gridQuienes");
 const contadorQuienes = document.getElementById("contadorQuienes");
+
+const overlayFoto = document.getElementById("overlayFoto");
+const fotoAmpliada = document.getElementById("fotoAmpliada");
+const cerrarFoto = document.getElementById("cerrarFoto");
 
 const overlay = document.getElementById("overlay");
 const modalGenero = document.getElementById("modalGenero");
@@ -1319,19 +1366,21 @@ function procesarEventos(filas){
   return { proximos, pasados };
 }
 
-// Si el título coincide con un libro real de LIBROS, se muestra su foto y
-// sinopsis reales (con precio/disponibilidad al día) y, al tocarlo, abre
-// exactamente el mismo modal de detalle que en la pestaña Libros — con su
-// botón de Agregar al carrito o Solicitar. Si no hay coincidencia (libro
-// descontinuado, evento sin libro, etc.), se muestra el texto tal cual se
-// escribió en la pestaña Eventos, sin botón de compra.
-function bloqueLibroEvento(ev){
-  if(!ev.libro) return "";
-  const libro = buscarLibroPorTitulo(ev.libro);
+// Bloque reutilizable: si el título dado coincide con un libro real de
+// LIBROS, se muestra su foto y sinopsis reales (con precio/disponibilidad
+// al día) y, al tocarlo, abre exactamente el mismo modal de detalle que en
+// la pestaña Libros — con su botón de Agregar al carrito o Solicitar. Si no
+// hay coincidencia (libro descontinuado, título libre, etc.), se muestra el
+// texto tal cual se escribió, sin botón de compra. Se usa tanto para el
+// libro de un evento como para Libro favorito / Leyendo ahora /
+// Recomendación del mes en Quiénes Somos.
+function bloqueLibroClicable(etiqueta, titulo, sinopsisFallback){
+  if(!titulo) return "";
+  const libro = buscarLibroPorTitulo(titulo);
   if(!libro){
     return `
-      <p class="dato-evento">📖 <strong>${ev.libro}</strong></p>
-      ${ev.sinopsis ? `<p class="sinopsis">${ev.sinopsis}</p>` : ""}
+      <p class="dato-evento">${etiqueta} <strong>${titulo}</strong></p>
+      ${sinopsisFallback ? `<p class="sinopsis">${sinopsisFallback}</p>` : ""}
     `;
   }
   const escapado = libro.titulo.replace(/"/g, "&quot;");
@@ -1342,6 +1391,7 @@ function bloqueLibroEvento(ev){
     <button type="button" class="libro-evento" data-libro="${escapado}">
       ${fotoHTML}
       <span class="libro-evento-info">
+        <span class="etiqueta-libro-evento">${etiqueta}</span>
         <strong>${libro.titulo}</strong>
         <span class="ver-libro">Ver libro y comprar →</span>
       </span>
@@ -1349,12 +1399,16 @@ function bloqueLibroEvento(ev){
   `;
 }
 
+function bloqueLibroEvento(ev){
+  return bloqueLibroClicable("📖 Libro del evento", ev.libro, ev.sinopsis);
+}
+
 function tarjetaEvento(ev){
   const fotos = [ev.fotoLetrasVinos, ev.fotoDireccion, ev.fotoComunidad].filter(Boolean);
   const fotosHTML = fotos.length
     ? `<div class="fotos-evento">${fotos.map(f =>
         `<img class="foto-evento" src="${f}" alt="${ev.nombre}" loading="lazy" decoding="async" onerror="this.style.display='none'">`
-      ).join("")}</div>`
+      ).join("")}</div>${fotos.length > 1 ? `<p class="pista-fotos">← desliza para ver las ${fotos.length} fotos · toca una para ampliar →</p>` : ""}`
     : `<div class="foto-vacia">Letras &amp; Vinos</div>`;
   const estadoHTML = ev.esProximo
     ? `<span class="estado proximo">Próximo</span>`
@@ -1389,13 +1443,6 @@ function renderEventos(){
     ? `<div class="grid">${EVENTOS.pasados.map(tarjetaEvento).join("")}</div>`
     : `<p class="vacio">Todavía no hay eventos pasados para mostrar.</p>`);
   gridEventos.innerHTML = partes.join("");
-
-  gridEventos.querySelectorAll(".libro-evento").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const libro = buscarLibroPorTitulo(btn.dataset.libro);
-      if(libro) abrirDetalle(libro);
-    });
-  });
 }
 
 // ---------- QUIÉNES SOMOS ----------
@@ -1426,18 +1473,18 @@ function procesarEquipo(filas){
 
 function tarjetaEquipo(p){
   const fotoHTML = p.foto
-    ? `<img class="foto" src="${p.foto}" alt="${p.nombre}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
+    ? `<img class="foto-equipo" src="${p.foto}" alt="${p.nombre}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
     : `<div class="foto-vacia">Letras &amp; Vinos</div>`;
   return `
-    <div class="card">
+    <div class="card card-equipo">
       ${fotoHTML}
       <div class="cuerpo">
         <h3>${p.nombre}</h3>
-        ${p.libroFavorito ? `<p class="dato-evento">📖 Libro favorito: <strong>${p.libroFavorito}</strong></p>` : ""}
+        ${bloqueLibroClicable("📖 Libro favorito", p.libroFavorito, "")}
         ${p.sagaFavorita ? `<p class="dato-evento">🏰 Saga favorita: ${p.sagaFavorita}</p>` : ""}
         ${p.generoFavorito ? `<p class="dato-evento">🎭 Género favorito: ${p.generoFavorito}</p>` : ""}
-        ${p.leyendoAhora ? `<p class="dato-evento">📚 Leyendo ahora: ${p.leyendoAhora}</p>` : ""}
-        ${p.recomendacionMes ? `<p class="dato-evento">⭐ Recomendación del mes: ${p.recomendacionMes}</p>` : ""}
+        ${bloqueLibroClicable("📚 Leyendo ahora", p.leyendoAhora, "")}
+        ${bloqueLibroClicable("⭐ Recomendación del mes", p.recomendacionMes, "")}
         ${p.maridaje ? `<p class="dato-evento">🍷 Maridaje favorito: ${p.maridaje}</p>` : ""}
         ${p.fraseFavorita ? `<p class="frase-equipo">"${p.fraseFavorita}"</p>` : ""}
       </div>
@@ -1677,6 +1724,50 @@ grid.addEventListener("click", (e) => {
   if(!isNaN(idx) && listaVisible[idx]) abrirDetalle(listaVisible[idx]);
 });
 
+// Lightbox de fotos (eventos y equipo): abre la foto completa por encima
+// de todo. Igual que arriba, delegado sobre el contenedor de la grilla
+// para seguir funcionando aunque una foto rota se reemplace sola.
+function abrirFotoAmpliada(src, alt){
+  fotoAmpliada.src = src;
+  fotoAmpliada.alt = alt || "";
+  overlayFoto.classList.add("abierto");
+}
+function cerrarFotoAmpliada(){
+  overlayFoto.classList.remove("abierto");
+  fotoAmpliada.src = "";
+}
+overlayFoto.addEventListener("click", cerrarFotoAmpliada);
+cerrarFoto.addEventListener("click", (e) => { e.stopPropagation(); cerrarFotoAmpliada(); });
+
+// Delegado para Eventos: el botón de libro abre el modal de compra y las
+// fotos del evento abren el lightbox — ambos sobreviven a un re-render de
+// renderEventos() porque el listener vive en el contenedor, no en cada
+// tarjeta.
+gridEventos.addEventListener("click", (e) => {
+  const btnLibro = e.target.closest(".libro-evento");
+  if(btnLibro){
+    const libro = buscarLibroPorTitulo(btnLibro.dataset.libro);
+    if(libro) abrirDetalle(libro);
+    return;
+  }
+  const foto = e.target.closest(".foto-evento");
+  if(foto) abrirFotoAmpliada(foto.src, foto.alt);
+});
+
+// Delegado para Quiénes Somos: mismo patrón — libro favorito / leyendo
+// ahora / recomendación del mes abren el modal de compra si coinciden con
+// un libro real, y la foto de cada persona abre el lightbox.
+gridQuienes.addEventListener("click", (e) => {
+  const btnLibro = e.target.closest(".libro-evento");
+  if(btnLibro){
+    const libro = buscarLibroPorTitulo(btnLibro.dataset.libro);
+    if(libro) abrirDetalle(libro);
+    return;
+  }
+  const foto = e.target.closest(".foto-equipo");
+  if(foto) abrirFotoAmpliada(foto.src, foto.alt);
+});
+
 buscador.addEventListener("input", render);
 filtroGenero.addEventListener("change", render);
 filtroTipo.addEventListener("change", render);
@@ -1739,10 +1830,10 @@ if(URL_CSV_QUIENES.indexOf("PENDIENTE") === 0){
 // Cuatro pestañas, una sola función de activación: apaga todas y prende
 // solo la que corresponde al botón clickeado, por índice.
 const PESTANAS = [
+  { tab: tabQuienes, vista: vistaQuienes },
   { tab: tabLibros, vista: vistaLibros },
   { tab: tabInsumos, vista: vistaInsumos },
   { tab: tabEventos, vista: vistaEventos },
-  { tab: tabQuienes, vista: vistaQuienes },
 ];
 PESTANAS.forEach(({ tab, vista }) => {
   tab.addEventListener("click", () => {
