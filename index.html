@@ -47,13 +47,6 @@
     color:var(--texto-suave);
     margin:0.8rem 0 0;
   }
-  header p.sub{
-    font-size:0.72rem;
-    letter-spacing:2px;
-    text-transform:uppercase;
-    color:var(--texto-suave);
-    margin:1rem 0 0;
-  }
   .tabs{
     display:flex;
     justify-content:center;
@@ -283,9 +276,21 @@
     align-items:center;justify-content:center;padding:2rem;z-index:200;cursor:zoom-out;
   }
   .overlay-foto.abierto{display:flex;}
-  .overlay-foto img{
-    max-width:100%;max-height:100%;border-radius:10px;
-    box-shadow:0 12px 40px rgba(0,0,0,0.5);cursor:default;
+  /* Dentro del visor las fotos también se deslizan: se recorren todas las
+     del evento sin tener que cerrar y volver a abrir. */
+  .carrusel-foto{
+    display:flex;width:100%;max-width:900px;
+    overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;cursor:default;
+  }
+  .carrusel-foto::-webkit-scrollbar{display:none;}
+  .carrusel-foto img{
+    flex:0 0 100%;width:100%;max-height:78vh;object-fit:contain;
+    scroll-snap-align:center;border-radius:10px;
+  }
+  .contador-foto{
+    position:absolute;bottom:1.3rem;left:0;right:0;text-align:center;margin:0;
+    color:rgba(255,255,255,0.85);font-size:0.8rem;letter-spacing:0.5px;
   }
   .cerrar-foto{
     position:absolute;top:1.1rem;right:1.3rem;
@@ -295,29 +300,21 @@
     display:flex;align-items:center;justify-content:center;
   }
   .cerrar-foto:hover{background:rgba(255,255,255,0.28);}
-  .etiqueta-libro-evento{
-    font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;
-    color:var(--texto-suave);font-weight:600;
-  }
   .dato-evento{font-size:0.8rem;color:var(--texto-suave);margin:0 0 0.4rem;line-height:1.45;}
   .dato-evento strong{color:var(--texto);font-weight:600;}
   .acciones-evento{margin-top:auto;display:flex;flex-direction:column;gap:0.5rem;}
   .acciones-evento .btn{margin-top:0;}
-  .libro-evento{
-    display:flex;align-items:center;gap:0.7rem;width:100%;text-align:left;
-    background:var(--porcelana);border:1px solid var(--linea);border-radius:10px;
-    padding:0.6rem;margin:0.2rem 0 0.7rem;cursor:pointer;font-family:'Inter',sans-serif;
+  /* Los libros y vinos mencionados en Quiénes Somos y Eventos se muestran
+     como un enlace dentro de la línea de texto, no como tarjeta: la ficha
+     completa (con portada, precio y botón de compra) se abre solo al tocarlo,
+     para que la tarjeta de presentación se mantenga limpia. */
+  .enlace-libro, .enlace-insumo{
+    background:none;border:none;padding:0;margin:0;
+    font-family:'Inter',sans-serif;font-size:inherit;line-height:inherit;
+    color:var(--borgona);font-weight:600;text-decoration:underline;
+    text-underline-offset:2px;cursor:pointer;text-align:left;
   }
-  .libro-evento:hover{background:var(--rosa-niebla);}
-  .foto-libro-evento{
-    width:52px;height:70px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#fff;
-  }
-  .libro-evento-info{display:flex;flex-direction:column;gap:0.15rem;min-width:0;}
-  .libro-evento-info strong{
-    font-family:'Fraunces',serif;font-weight:500;font-size:0.9rem;color:var(--texto);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-  .libro-evento-info .ver-libro{font-size:0.75rem;color:var(--borgona);font-weight:600;}
+  .enlace-libro:hover, .enlace-insumo:hover{color:var(--borgona-osc);}
   .frase-equipo{
     font-family:'Fraunces',serif;font-style:italic;font-size:0.92rem;
     color:var(--texto);border-left:3px solid var(--borgona);
@@ -531,7 +528,6 @@
 <header>
   <img class="logo-marca" src="logo_transparente.png" alt="Letras &amp; Vinos">
   <p class="tagline">Lectura en estado líquido</p>
-  <p class="sub">Catálogo de libros</p>
 </header>
 
 <div class="tabs">
@@ -634,7 +630,8 @@
 
 <div class="overlay-foto" id="overlayFoto">
   <button class="cerrar-foto" id="cerrarFoto" aria-label="Cerrar">×</button>
-  <img id="fotoAmpliada" alt="">
+  <div class="carrusel-foto" id="carruselFoto"></div>
+  <p class="contador-foto" id="contadorFoto"></p>
 </div>
 
 <div class="overlay" id="overlay">
@@ -642,12 +639,14 @@
     <button class="cerrar" id="cerrarModal" aria-label="Cerrar">×</button>
     <div class="genero-tag" id="modalGenero"></div>
     <h3 id="modalTitulo"></h3>
-    <p class="ayuda">Este libro está agotado por ahora. Déjanos tu nombre y celular y te avisamos apenas vuelva a estar disponible.</p>
+    <p class="ayuda" id="modalAyuda">Este libro está agotado por ahora. Déjanos tus datos y te avisamos apenas vuelva a estar disponible.</p>
     <form id="formSolicitud">
       <label for="campoNombre">Tu nombre</label>
       <input type="text" id="campoNombre" required>
       <label for="campoCelular">Tu número de celular</label>
       <input type="tel" id="campoCelular" required placeholder="9999-9999">
+      <label for="campoCiudad">Tu ciudad</label>
+      <input type="text" id="campoCiudad" required placeholder="Tegucigalpa">
       <button type="submit" class="btn activo" id="botonEnviar">Enviar solicitud</button>
       <p class="mensaje" id="modalMensaje"></p>
     </form>
@@ -744,7 +743,8 @@ const gridQuienes = document.getElementById("gridQuienes");
 const contadorQuienes = document.getElementById("contadorQuienes");
 
 const overlayFoto = document.getElementById("overlayFoto");
-const fotoAmpliada = document.getElementById("fotoAmpliada");
+const carruselFoto = document.getElementById("carruselFoto");
+const contadorFoto = document.getElementById("contadorFoto");
 const cerrarFoto = document.getElementById("cerrarFoto");
 
 const overlay = document.getElementById("overlay");
@@ -753,6 +753,8 @@ const modalTitulo = document.getElementById("modalTitulo");
 const formSolicitud = document.getElementById("formSolicitud");
 const campoNombre = document.getElementById("campoNombre");
 const campoCelular = document.getElementById("campoCelular");
+const campoCiudad = document.getElementById("campoCiudad");
+const modalAyuda = document.getElementById("modalAyuda");
 const botonEnviar = document.getElementById("botonEnviar");
 const modalMensaje = document.getElementById("modalMensaje");
 const cerrarModal = document.getElementById("cerrarModal");
@@ -1318,6 +1320,21 @@ function buscarLibroPorTitulo(titulo){
   return LIBROS.find(l => normalizarPlano(l.titulo) === clave) || null;
 }
 
+// Lo mismo contra la Experiencia Literaria. Aquí sí se permite una
+// coincidencia parcial además de la exacta, porque el maridaje se escribe
+// suelto ("Carmenere merlot") y casi nunca calca el nombre completo del
+// producto en el inventario ("Vino Carmenere Merlot 750ml").
+function buscarInsumoPorNombre(nombre){
+  const clave = normalizarPlano(nombre || "");
+  if(!clave) return null;
+  const exacto = INSUMOS.find(i => normalizarPlano(i.nombre) === clave);
+  if(exacto) return exacto;
+  return INSUMOS.find(i => {
+    const n = normalizarPlano(i.nombre);
+    return n.includes(clave) || clave.includes(n);
+  }) || null;
+}
+
 function mensajeWhatsappEvento(ev){
   let texto = `Hola, quiero reservar mi lugar para el evento "${ev.nombre}"`;
   if(ev.fecha) texto += ` del ${formatearFechaEvento(ev.fecha)}`;
@@ -1366,41 +1383,24 @@ function procesarEventos(filas){
   return { proximos, pasados };
 }
 
-// Bloque reutilizable: si el título dado coincide con un libro real de
-// LIBROS, se muestra su foto y sinopsis reales (con precio/disponibilidad
-// al día) y, al tocarlo, abre exactamente el mismo modal de detalle que en
-// la pestaña Libros — con su botón de Agregar al carrito o Solicitar. Si no
-// hay coincidencia (libro descontinuado, título libre, etc.), se muestra el
-// texto tal cual se escribió, sin botón de compra. Se usa tanto para el
-// libro de un evento como para Libro favorito / Leyendo ahora /
-// Recomendación del mes en Quiénes Somos.
-function bloqueLibroClicable(etiqueta, titulo, sinopsisFallback){
+// Un libro mencionado (del evento, favorito, leyendo ahora, recomendación)
+// se muestra como un enlace dentro de la línea de texto, para no recargar la
+// tarjeta. La ficha completa se arma al hacer click, no al dibujar: así da
+// igual que los libros del inventario carguen después que los eventos o el
+// equipo, y si el título no existe en el inventario igual se puede solicitar.
+function enlaceLibro(etiqueta, titulo){
   if(!titulo) return "";
-  const libro = buscarLibroPorTitulo(titulo);
-  if(!libro){
-    return `
-      <p class="dato-evento">${etiqueta} <strong>${titulo}</strong></p>
-      ${sinopsisFallback ? `<p class="sinopsis">${sinopsisFallback}</p>` : ""}
-    `;
-  }
-  const escapado = libro.titulo.replace(/"/g, "&quot;");
-  const fotoHTML = libro.foto
-    ? `<img class="foto-libro-evento" src="${libro.foto}" alt="${libro.titulo}" loading="lazy" decoding="async" onerror="this.style.display='none'">`
-    : "";
-  return `
-    <button type="button" class="libro-evento" data-libro="${escapado}">
-      ${fotoHTML}
-      <span class="libro-evento-info">
-        <span class="etiqueta-libro-evento">${etiqueta}</span>
-        <strong>${libro.titulo}</strong>
-        <span class="ver-libro">Ver libro y comprar →</span>
-      </span>
-    </button>
-  `;
+  const escapado = titulo.replace(/"/g, "&quot;");
+  return `<p class="dato-evento">${etiqueta}: <button type="button" class="enlace-libro" data-libro="${escapado}">${titulo}</button></p>`;
 }
 
-function bloqueLibroEvento(ev){
-  return bloqueLibroClicable("📖 Libro del evento", ev.libro, ev.sinopsis);
+// Igual que enlaceLibro pero contra la Experiencia Literaria (vinos y
+// detalles literarios): si el maridaje existe como insumo se puede agregar
+// al carrito desde ahí mismo.
+function enlaceInsumo(etiqueta, nombre){
+  if(!nombre) return "";
+  const escapado = nombre.replace(/"/g, "&quot;");
+  return `<p class="dato-evento">${etiqueta}: <button type="button" class="enlace-insumo" data-insumo="${escapado}">${nombre}</button></p>`;
 }
 
 function tarjetaEvento(ev){
@@ -1423,7 +1423,7 @@ function tarjetaEvento(ev){
         ${fechaTexto || ev.horario ? `<p class="dato-evento">🗓️ ${fechaTexto}${fechaTexto && ev.horario ? " · " : ""}${ev.horario}</p>` : ""}
         ${ev.lugar ? `<p class="dato-evento">📍 ${ev.lugar}</p>` : ""}
         ${ev.dirigidoPor ? `<p class="dato-evento">🎤 Dirigido por ${ev.dirigidoPor}</p>` : ""}
-        ${bloqueLibroEvento(ev)}
+        ${enlaceLibro("📖 Libro del evento", ev.libro)}
         <div class="acciones-evento">
           ${ev.esProximo ? `<a class="btn activo" href="${mensajeWhatsappEvento(ev)}" target="_blank" rel="noopener">Reservar mi lugar</a>` : ""}
         </div>
@@ -1480,12 +1480,12 @@ function tarjetaEquipo(p){
       ${fotoHTML}
       <div class="cuerpo">
         <h3>${p.nombre}</h3>
-        ${bloqueLibroClicable("📖 Libro favorito", p.libroFavorito, "")}
+        ${enlaceLibro("📖 Libro favorito", p.libroFavorito)}
         ${p.sagaFavorita ? `<p class="dato-evento">🏰 Saga favorita: ${p.sagaFavorita}</p>` : ""}
         ${p.generoFavorito ? `<p class="dato-evento">🎭 Género favorito: ${p.generoFavorito}</p>` : ""}
-        ${bloqueLibroClicable("📚 Leyendo ahora", p.leyendoAhora, "")}
-        ${bloqueLibroClicable("⭐ Recomendación del mes", p.recomendacionMes, "")}
-        ${p.maridaje ? `<p class="dato-evento">🍷 Maridaje favorito: ${p.maridaje}</p>` : ""}
+        ${enlaceLibro("📚 Leyendo ahora", p.leyendoAhora)}
+        ${enlaceLibro("⭐ Recomendación del mes", p.recomendacionMes)}
+        ${enlaceInsumo("🍷 Maridaje favorito", p.maridaje)}
         ${p.fraseFavorita ? `<p class="frase-equipo">"${p.fraseFavorita}"</p>` : ""}
       </div>
     </div>
@@ -1578,12 +1578,20 @@ function render(){
   });
 }
 
-function abrirModal(libro){
+// modo "agotado" (default): el libro sí está en el inventario pero sin
+// existencias. modo "pedido": el título viene de Quiénes Somos o Eventos y
+// no existe en el inventario — igual se puede solicitar, solo cambia el
+// texto de ayuda para que la clienta entienda qué está pidiendo.
+function abrirModal(libro, modo){
   libroActivo = libro;
   modalGenero.textContent = libro.genero;
   modalTitulo.textContent = libro.titulo;
+  modalAyuda.textContent = modo === "pedido"
+    ? "Este libro todavía no está en nuestro catálogo. Déjanos tus datos y lo buscamos para vos."
+    : "Este libro está agotado por ahora. Déjanos tus datos y te avisamos apenas vuelva a estar disponible.";
   campoNombre.value = "";
   campoCelular.value = "";
+  campoCiudad.value = "";
   modalMensaje.textContent = "";
   modalMensaje.className = "mensaje";
   botonEnviar.disabled = false;
@@ -1642,6 +1650,49 @@ function abrirDetalle(libro){
   overlayDetalle.classList.add("abierto");
 }
 
+// Abre la misma ficha de detalle para un producto de la Experiencia
+// Literaria. Si el maridaje escrito en Quiénes Somos todavía no existe como
+// insumo, la ficha lo dice y ofrece preguntarlo por WhatsApp.
+function abrirDetalleInsumo(nombre){
+  const ins = buscarInsumoPorNombre(nombre);
+  detalleFoto.onerror = () => { detalleFoto.style.display = "none"; };
+  if(ins && ins.foto){
+    detalleFoto.style.display = "block";
+    detalleFoto.src = ins.foto;
+  } else {
+    detalleFoto.style.display = "none";
+  }
+  detalleFoto.alt = nombre;
+  detalleBadges.innerHTML = `<div class="tipo-tag">Experiencia Literaria</div>`;
+  detalleTitulo.textContent = ins ? ins.nombre : nombre;
+  detalleAutor.textContent = "";
+  detalleSinopsis.textContent = ins
+    ? ""
+    : "Este maridaje todavía no está en la Experiencia Literaria. Escríbenos y te contamos cómo conseguirlo.";
+  detallePrecioFila.innerHTML = ins
+    ? `<span class="precio">L.${ins.precio}</span>
+       <span class="estado ${ins.disponible > 0 ? 'disp':'agot'}">${ins.disponible > 0 ? 'Disponible':'Agotado'}</span>`
+    : "";
+  if(ins && ins.disponible > 0){
+    detalleAccion.innerHTML = `<button type="button" class="btn activo" id="detalleBtnAgregar">Agregar al carrito</button>`;
+    document.getElementById("detalleBtnAgregar").addEventListener("click", (e)=>{
+      agregarAlCarrito("insumo", ins);
+      e.target.textContent = "¡Agregado! ✓";
+      setTimeout(()=>{ e.target.textContent = "Agregar al carrito"; }, 1200);
+    });
+  } else {
+    const texto = encodeURIComponent(`Hola, me interesa "${ins ? ins.nombre : nombre}" de la Experiencia Literaria.`);
+    detalleAccion.innerHTML = `<a class="btn solicitar" href="https://wa.me/${NUMERO_WHATSAPP}?text=${texto}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>`;
+  }
+  overlayDetalle.classList.add("abierto");
+}
+
+// Un título que no está en el inventario igual se puede solicitar: se arma
+// un libro "de mentira" solo para llenar la fila de Solicitudes de Libros.
+function solicitarLibroPorTitulo(titulo){
+  abrirModal({ titulo: titulo, autor: "", genero: "Por pedido" }, "pedido");
+}
+
 function cerrarDetalleModal(){
   overlayDetalle.classList.remove("abierto");
 }
@@ -1668,7 +1719,8 @@ formSolicitud.addEventListener("submit", function(e){
     libro: libroActivo.titulo,
     autor: libroActivo.autor || "",
     nombre: campoNombre.value.trim(),
-    celular: campoCelular.value.trim()
+    celular: campoCelular.value.trim(),
+    ciudad: campoCiudad.value.trim()
   };
 
   fetch(URL_APPS_SCRIPT, {
@@ -1724,49 +1776,78 @@ grid.addEventListener("click", (e) => {
   if(!isNaN(idx) && listaVisible[idx]) abrirDetalle(listaVisible[idx]);
 });
 
-// Lightbox de fotos (eventos y equipo): abre la foto completa por encima
-// de todo. Igual que arriba, delegado sobre el contenedor de la grilla
-// para seguir funcionando aunque una foto rota se reemplace sola.
-function abrirFotoAmpliada(src, alt){
-  fotoAmpliada.src = src;
-  fotoAmpliada.alt = alt || "";
+// Visor de fotos (eventos y equipo): abre las fotos en grande por encima de
+// todo. Recibe la lista completa de fotos y cuál se tocó, para poder
+// deslizarlas todas ahí adentro sin tener que cerrar y volver a abrir.
+function abrirFotoAmpliada(fotos, indice, alt){
+  const texto = (alt || "").replace(/"/g, "&quot;");
+  carruselFoto.innerHTML = fotos.map(f => `<img src="${f}" alt="${texto}">`).join("");
   overlayFoto.classList.add("abierto");
+  // El scroll se fija después de pintar, cuando el carrusel ya tiene ancho.
+  requestAnimationFrame(() => {
+    carruselFoto.scrollLeft = carruselFoto.clientWidth * indice;
+    actualizarContadorFoto();
+  });
 }
+
+function actualizarContadorFoto(){
+  const total = carruselFoto.children.length;
+  if(total < 2){ contadorFoto.textContent = ""; return; }
+  const ancho = carruselFoto.clientWidth || 1;
+  const actual = Math.round(carruselFoto.scrollLeft / ancho) + 1;
+  contadorFoto.textContent = `${Math.min(actual, total)} / ${total} · desliza para ver las demás`;
+}
+
 function cerrarFotoAmpliada(){
   overlayFoto.classList.remove("abierto");
-  fotoAmpliada.src = "";
+  carruselFoto.innerHTML = "";
+  contadorFoto.textContent = "";
 }
+
 overlayFoto.addEventListener("click", cerrarFotoAmpliada);
+// Sin esto, deslizar o tocar una foto dentro del visor cerraría el visor.
+carruselFoto.addEventListener("click", (e) => e.stopPropagation());
+carruselFoto.addEventListener("scroll", actualizarContadorFoto);
 cerrarFoto.addEventListener("click", (e) => { e.stopPropagation(); cerrarFotoAmpliada(); });
-
-// Delegado para Eventos: el botón de libro abre el modal de compra y las
-// fotos del evento abren el lightbox — ambos sobreviven a un re-render de
-// renderEventos() porque el listener vive en el contenedor, no en cada
-// tarjeta.
-gridEventos.addEventListener("click", (e) => {
-  const btnLibro = e.target.closest(".libro-evento");
-  if(btnLibro){
-    const libro = buscarLibroPorTitulo(btnLibro.dataset.libro);
-    if(libro) abrirDetalle(libro);
-    return;
-  }
-  const foto = e.target.closest(".foto-evento");
-  if(foto) abrirFotoAmpliada(foto.src, foto.alt);
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape" && overlayFoto.classList.contains("abierto")) cerrarFotoAmpliada();
 });
 
-// Delegado para Quiénes Somos: mismo patrón — libro favorito / leyendo
-// ahora / recomendación del mes abren el modal de compra si coinciden con
-// un libro real, y la foto de cada persona abre el lightbox.
-gridQuienes.addEventListener("click", (e) => {
-  const btnLibro = e.target.closest(".libro-evento");
-  if(btnLibro){
-    const libro = buscarLibroPorTitulo(btnLibro.dataset.libro);
-    if(libro) abrirDetalle(libro);
-    return;
-  }
-  const foto = e.target.closest(".foto-equipo");
-  if(foto) abrirFotoAmpliada(foto.src, foto.alt);
-});
+// Abre el visor con todas las fotos hermanas del contenedor, empezando por
+// la que se tocó.
+function ampliarDesdeGrupo(foto, selector){
+  const grupo = Array.from(foto.parentElement.querySelectorAll(selector));
+  const indice = Math.max(0, grupo.indexOf(foto));
+  abrirFotoAmpliada(grupo.map(f => f.src), indice, foto.alt);
+}
+
+// Un enlace de libro decide al momento del click: si el título existe en el
+// inventario abre su ficha (con Agregar al carrito o Solicitar según el
+// stock); si no existe, abre directo el formulario de solicitud.
+function abrirLibroDesdeEnlace(titulo){
+  const libro = buscarLibroPorTitulo(titulo);
+  if(libro) abrirDetalle(libro);
+  else solicitarLibroPorTitulo(titulo);
+}
+
+// Delegado (no dentro de render) para Eventos y Quiénes Somos: enlaces de
+// libro, enlaces de maridaje y fotos. Vive en el contenedor, así sobrevive a
+// cualquier re-render y a las fotos rotas que se reemplazan solas.
+function conectarGrilla(contenedor, selectorFoto){
+  contenedor.addEventListener("click", (e) => {
+    const enlaceL = e.target.closest(".enlace-libro");
+    if(enlaceL){ abrirLibroDesdeEnlace(enlaceL.dataset.libro); return; }
+
+    const enlaceI = e.target.closest(".enlace-insumo");
+    if(enlaceI){ abrirDetalleInsumo(enlaceI.dataset.insumo); return; }
+
+    const foto = e.target.closest(selectorFoto);
+    if(foto) ampliarDesdeGrupo(foto, selectorFoto);
+  });
+}
+
+conectarGrilla(gridEventos, ".foto-evento");
+conectarGrilla(gridQuienes, ".foto-equipo");
 
 buscador.addEventListener("input", render);
 filtroGenero.addEventListener("change", render);
