@@ -297,6 +297,24 @@
     padding:0.35rem 0 0;cursor:pointer;text-decoration:underline;
   }
   .btn-mas:hover{color:var(--borgona-osc);}
+  /* Apartado de apertura de Quiénes Somos: cómo nacieron el Club y el
+     emprendimiento. Sale antes de las tarjetas de cada una. */
+  .historia{
+    max-width:640px;margin:0 auto;padding:0.5rem 1.5rem 1.5rem;text-align:center;
+  }
+  .historia h2{
+    font-family:'Fraunces',serif;font-weight:500;font-size:1.35rem;
+    color:var(--texto);margin:0 0 1rem;
+  }
+  .historia p{
+    font-size:0.92rem;line-height:1.75;color:var(--texto-suave);
+    margin:0 0 0.9rem;text-align:left;
+  }
+  .historia p:last-child{margin-bottom:0;}
+  .historia::after{
+    content:"";display:block;width:60px;height:2px;
+    background:var(--borgona);opacity:0.35;margin:1.6rem auto 0;
+  }
   .overlay-foto{
     display:none;position:fixed;inset:0;background:rgba(20,16,17,0.9);
     align-items:center;justify-content:center;padding:2rem;z-index:200;cursor:zoom-out;
@@ -817,6 +835,7 @@ let LIBROS = [];
 let INSUMOS = [];
 let EVENTOS = { proximos: [], pasados: [] };
 let FOTOS_VISOR = [];
+let HISTORIA = null;
 let EQUIPO = [];
 let libroActivo = null;
 let CARRITO = [];
@@ -1516,6 +1535,34 @@ function partirFrase(texto){
   };
 }
 
+// La historia del Club vive en la misma pestaña "Quiénes Somos", en dos
+// columnas al final: K TÍTULO HISTORIA y L HISTORIA. Se recorren todas las
+// filas y se usa la primera que tenga texto, así da igual en qué fila se
+// escriba (normalmente la 2, junto a la primera persona).
+// Importante: aquí NO se usa normalizarTitulo, porque aplasta los saltos de
+// línea y son justamente los que separan los párrafos.
+function extraerHistoria(filas){
+  for(let i = 1; i < filas.length; i++){
+    const f = filas[i] || [];
+    const texto = (f[11] || "").trim();
+    if(texto){
+      return { titulo: (f[10] || "").trim() || "Cómo empezó todo", texto: texto };
+    }
+  }
+  return null;
+}
+
+function bloqueHistoria(h){
+  if(!h) return "";
+  const parrafos = h.texto.split(/\n+/).map(p => p.trim()).filter(Boolean);
+  return `
+    <section class="historia">
+      <h2>${h.titulo}</h2>
+      ${parrafos.map(p => `<p>${p}</p>`).join("")}
+    </section>
+  `;
+}
+
 function procesarEquipo(filas){
   const equipo = [];
   for(let i = 1; i < filas.length; i++){
@@ -1572,9 +1619,10 @@ function tarjetaEquipo(p){
 
 function renderEquipo(){
   contadorQuienes.textContent = EQUIPO.length ? `Mostrando ${EQUIPO.length} de nuestro equipo` : "";
-  gridQuienes.innerHTML = EQUIPO.length
+  const tarjetas = EQUIPO.length
     ? `<div class="grid grid-equipo">${EQUIPO.map(tarjetaEquipo).join("")}</div>`
     : `<div class="vacio">Todavía no hay perfiles del equipo para mostrar.</div>`;
+  gridQuienes.innerHTML = bloqueHistoria(HISTORIA) + tarjetas;
 }
 
 function render(){
@@ -2001,7 +2049,9 @@ if(URL_CSV_QUIENES.indexOf("PENDIENTE") === 0){
   fetch(URL_CSV_QUIENES)
     .then(r => { if(!r.ok) throw new Error("No se pudo leer el equipo"); return r.text(); })
     .then(texto => {
-      EQUIPO = procesarEquipo(parseCSV(texto));
+      const filas = parseCSV(texto);
+      HISTORIA = extraerHistoria(filas);
+      EQUIPO = procesarEquipo(filas);
       renderEquipo();
     })
     .catch(err => {
