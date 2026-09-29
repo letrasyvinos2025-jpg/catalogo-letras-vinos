@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarjeta de Cliente Frecuente — Letras &amp; Vinos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --negro:#0E0B0C;
+    --negro-suave:#171113;
+    --borgona:#7A2036;
+    --borgona-claro:#9E2A45;
+    --oro:#C9A227;
+    --oro-claro:#E8C766;
+    --crema:#F3E7D8;
+    --texto-tenue:#A08E86;
+    --linea:rgba(201,162,39,0.35);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(122,32,54,0.35), transparent 45%),
+      radial-gradient(circle at 85% 85%, rgba(122,32,54,0.28), transparent 45%),
+      var(--negro);
+    color:var(--crema);
+    font-family:'Inter',sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:1.2rem;
+  }
+  .tarjeta{
+    width:100%;
+    max-width:560px;
+    background:linear-gradient(160deg, var(--negro-suave), #100C0D);
+    border:1px solid var(--linea);
+    border-radius:18px;
+    padding:2rem 1.6rem 1.8rem;
+    position:relative;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  }
+  /* Filete dorado interior, como el de la tarjeta impresa */
+  .tarjeta::before{
+    content:"";
+    position:absolute; inset:10px;
+    border:1px solid rgba(201,162,39,0.18);
+    border-radius:12px;
+    pointer-events:none;
+  }
+  .marca{
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:2.1rem;
+    text-align:center;
+    margin:0;
+    background:linear-gradient(90deg, var(--crema), var(--oro-claro), var(--crema));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .subtitulo{
+    text-align:center;
+    font-size:0.68rem;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--texto-tenue);
+    margin:0.5rem 0 0;
+  }
+  .division{
+    height:1px;
+    background:linear-gradient(90deg, transparent, var(--linea), transparent);
+    margin:1.4rem 0;
+  }
+  form{display:flex; gap:0.5rem; flex-wrap:wrap;}
+  input[type="tel"]{
+    flex:1 1 200px;
+    font-family:'Inter',sans-serif;
+    font-size:1rem;
+    padding:0.8rem 1rem;
+    border-radius:10px;
+    border:1px solid var(--linea);
+    background:rgba(255,255,255,0.04);
+    color:var(--crema);
+    outline:none;
+  }
+  input[type="tel"]::placeholder{color:#6E5F5B;}
+  input[type="tel"]:focus{border-color:var(--oro);}
+  button{
+    font-family:'Inter',sans-serif;
+    font-size:0.9rem;
+    font-weight:600;
+    padding:0.8rem 1.4rem;
+    border-radius:10px;
+    border:none;
+    cursor:pointer;
+    background:linear-gradient(135deg, var(--borgona-claro), var(--borgona));
+    color:var(--crema);
+  }
+  button:hover{filter:brightness(1.15);}
+  button:disabled{opacity:0.6; cursor:default;}
+  .ayuda{
+    font-size:0.75rem;
+    color:var(--texto-tenue);
+    margin:0.7rem 0 0;
+    line-height:1.5;
+  }
+  .saludo{
+    font-family:'Fraunces',serif;
+    font-size:1.25rem;
+    margin:0 0 0.2rem;
+  }
+  .conteo{font-size:0.85rem; color:var(--texto-tenue); margin:0 0 1.1rem;}
+  .conteo strong{color:var(--oro-claro); font-size:1.05rem;}
+  .sellos{
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:0.7rem;
+  }
+  .sello{
+    aspect-ratio:1;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Fraunces',serif;
+    font-size:0.95rem;
+    border:1px dashed rgba(201,162,39,0.3);
+    color:#5C4F4A;
+    background:rgba(255,255,255,0.02);
+  }
+  /* Sello ganado: disco dorado con el número en negro */
+  .sello.lleno{
+    border:1px solid var(--oro);
+    color:#2A1E10;
+    font-weight:600;
+    background:radial-gradient(circle at 35% 30%, var(--oro-claro), var(--oro) 55%, #9A7B1C);
+    box-shadow:0 2px 10px rgba(201,162,39,0.35);
+  }
+  .beneficios{
+    margin-top:1.4rem;
+    border:1px solid var(--linea);
+    border-radius:12px;
+    padding:1rem 1.1rem;
+  }
+  .beneficios h2{
+    font-size:0.68rem;
+    letter-spacing:2.5px;
+    text-transform:uppercase;
+    color:var(--texto-tenue);
+    margin:0 0 0.9rem;
+    text-align:center;
+    font-weight:500;
+  }
+  .beneficio{
+    display:flex;
+    align-items:center;
+    gap:0.9rem;
+    font-size:0.82rem;
+    line-height:1.45;
+    padding:0.5rem 0;
+  }
+  .beneficio + .beneficio{border-top:1px solid rgba(201,162,39,0.15);}
+  .ficha{
+    flex:0 0 46px;
+    height:46px;
+    border-radius:50%;
+    background:var(--borgona);
+    border:1px solid var(--linea);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    line-height:1;
+  }
+  .ficha .n{font-family:'Fraunces',serif; font-size:1.15rem;}
+  .ficha .l{font-size:0.5rem; letter-spacing:1px; color:var(--texto-tenue);}
+  .beneficio.logrado .ficha{background:var(--oro); color:#2A1E10;}
+  .beneficio.logrado .ficha .l{color:#5C4A1C;}
+  .beneficio.logrado{color:var(--oro-claro);}
+  .pie{
+    text-align:center;
+    font-size:0.66rem;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:#5C4F4A;
+    margin:1.4rem 0 0;
+  }
+  .mensaje{font-size:0.88rem; line-height:1.6; margin:1rem 0 0;}
+  .mensaje.error{color:#E08A9B;}
+  .oculto{display:none;}
+  @media (max-width:420px){
+    .tarjeta{padding:1.5rem 1.1rem 1.4rem;}
+    .marca{font-size:1.7rem;}
+    .sellos{gap:0.5rem;}
+    .sello{font-size:0.8rem;}
+  }
+</style>
+</head>
+<body>
+
+<main class="tarjeta">
+  <h1 class="marca">Letras &amp; Vinos</h1>
+  <p class="subtitulo">Tarjeta de cliente frecuente</p>
+
+  <div class="division"></div>
+
+  <form id="formConsulta">
+    <input type="tel" id="campoCelular" inputmode="numeric" placeholder="Tu número de celular" required>
+    <button type="submit" id="botonVer">Ver mis sellos</button>
+  </form>
+  <p class="ayuda" id="ayuda">
+    Escribe el mismo número que diste al comprar. Si es tu primera vez, pídenos
+    tu tarjeta en tu próxima compra.
+  </p>
+
+  <div id="resultado" class="oculto">
+    <div class="division"></div>
+    <p class="saludo" id="saludo"></p>
+    <p class="conteo" id="conteo"></p>
+    <div class="sellos" id="sellos"></div>
+
+    <div class="beneficios">
+      <h2>Tus beneficios</h2>
+      <div class="beneficio" id="beneficio5">
+        <span class="ficha"><span class="n">5</span><span class="l">SELLOS</span></span>
+        <span>10% de descuento en tu próxima compra.</span>
+      </div>
+      <div class="beneficio" id="beneficio10">
+        <span class="ficha"><span class="n">10</span><span class="l">SELLOS</span></span>
+        <span>20% de descuento + regalo sorpresa.</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="mensaje oculto" id="mensaje"></p>
+  <p class="pie">Libros · Vinos · Personas · Historias</p>
+</main>
+
+<script>
+// ---------------------------------------------------------------------
+// La tarjeta NO lee una pestaña publicada del Sheet: eso dejaría el nombre
+// y el celular de todas las clientas a la vista de cualquiera con el
+// enlace. Se consulta la Web App de Apps Script, que recibe UN número y
+// responde solo los sellos de ese número.
+// ---------------------------------------------------------------------
+const URL_CONSULTA = "https://script.google.com/macros/s/AKfycbz0dFtc_8wt70-JXk_HD7ZFofMNA_H4dLryxf0sxZjeg1CzOd86x295969rqW_cP4yd/exec";
+const TOTAL_SELLOS = 10;
+
+const form = document.getElementById("formConsulta");
+const campoCelular = document.getElementById("campoCelular");
+const botonVer = document.getElementById("botonVer");
+const resultado = document.getElementById("resultado");
+const saludo = document.getElementById("saludo");
+const conteo = document.getElementById("conteo");
+const sellos = document.getElementById("sellos");
+const mensaje = document.getElementById("mensaje");
+const ayuda = document.getElementById("ayuda");
+const beneficio5 = document.getElementById("beneficio5");
+const beneficio10 = document.getElementById("beneficio10");
+
+// Mismo criterio que el bot y el Apps Script: solo dígitos y sin el 504,
+// para que un número escrito de tres formas distintas sea la misma persona.
+function normalizarCelular(valor){
+  let d = String(valor || "").replace(/\D/g, "");
+  if(d.length === 11 && d.startsWith("504")) d = d.slice(3);
+  return d;
+}
+
+function pintarSellos(cantidad){
+  sellos.innerHTML = "";
+  for(let i = 1; i <= TOTAL_SELLOS; i++){
+    const s = document.createElement("div");
+    s.className = i <= cantidad ? "sello lleno" : "sello";
+    s.textContent = i;
+    sellos.appendChild(s);
+  }
+}
+
+function mostrarMensaje(texto, esError){
+  mensaje.textContent = texto;
+  mensaje.className = esError ? "mensaje error" : "mensaje";
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const celular = normalizarCelular(campoCelular.value);
+  if(celular.length < 8){
+    mostrarMensaje("Ese número parece incompleto. En Honduras son 8 dígitos.", true);
+    resultado.classList.add("oculto");
+    return;
+  }
+
+  botonVer.disabled = true;
+  botonVer.textContent = "Buscando…";
+  mostrarMensaje("", false);
+
+  try {
+    const r = await fetch(`${URL_CONSULTA}?celular=${encodeURIComponent(celular)}`);
+    const datos = await r.json();
+
+    if(!datos.ok){
+      mostrarMensaje("No pudimos consultar tu tarjeta en este momento. Intenta más tarde.", true);
+      resultado.classList.add("oculto");
+      return;
+    }
+
+    if(!datos.encontrado){
+      resultado.classList.add("oculto");
+      mostrarMensaje(
+        "Todavía no encontramos una tarjeta con ese número. Si ya compraste con " +
+        "nosotras, escríbenos y la activamos; si es tu primera vez, pídela en tu " +
+        "próxima compra y empiezas a acumular.",
+        false
+      );
+      return;
+    }
+
+    ayuda.classList.add("oculto");
+    saludo.textContent = datos.nombre ? `¡Hola, ${datos.nombre}!` : "¡Hola!";
+    // "Te falta 1" / "Te faltan 3": la concordancia se arma sola, para que no
+    // quede el clásico "te faltan 1".
+    const cuantos = (n, meta) => `Te falta${n === 1 ? "" : "n"} ${n} para ${meta}`;
+    const faltan = TOTAL_SELLOS - datos.sellos;
+    let detalle = `Llevas <strong>${datos.sellos}</strong> de ${TOTAL_SELLOS} sellos.`;
+    if(datos.sellos === 0 && datos.tarjetasCompletadas > 0){
+      detalle += " ¡Acabas de completar una tarjeta! Esta es la siguiente.";
+    } else if(datos.sellos >= TOTAL_SELLOS){
+      detalle += " ¡Ya puedes reclamar tu 20% + regalo!";
+    } else if(datos.sellos < 5){
+      detalle += " " + cuantos(5 - datos.sellos, "tu 10% de descuento.");
+    } else {
+      detalle += ` ¡Tu 10% ya está disponible! ` + cuantos(faltan, "el 20% + regalo.");
+    }
+    conteo.innerHTML = detalle;
+
+    pintarSellos(datos.sellos);
+    beneficio5.classList.toggle("logrado", datos.sellos >= 5);
+    beneficio10.classList.toggle("logrado", datos.sellos >= TOTAL_SELLOS);
+
+    resultado.classList.remove("oculto");
+    mostrarMensaje("", false);
+  } catch (err) {
+    resultado.classList.add("oculto");
+    mostrarMensaje("No pudimos consultar tu tarjeta en este momento. Intenta más tarde.", true);
+  } finally {
+    botonVer.disabled = false;
+    botonVer.textContent = "Ver mis sellos";
+  }
+});
+
+// Permite compartir un enlace directo:  tarjeta.html?celular=99998888
+const desdeUrl = new URLSearchParams(location.search).get("celular");
+if(desdeUrl){
+  campoCelular.value = desdeUrl;
+  form.requestSubmit();
+}
+</script>
+
+</body>
+</html>
