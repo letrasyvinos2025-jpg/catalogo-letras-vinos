@@ -302,6 +302,12 @@
   .historia{
     max-width:640px;margin:0 auto;padding:0.5rem 1.5rem 1.5rem;text-align:center;
   }
+  /* Foto grupal arriba de la historia; al tocarla se abre en grande. */
+  .foto-historia{
+    display:block;width:100%;max-height:440px;object-fit:cover;
+    border-radius:16px;margin:0 auto 1.5rem;cursor:zoom-in;
+    box-shadow:0 12px 32px rgba(58,51,53,0.18);
+  }
   .historia h2{
     font-family:'Fraunces',serif;font-weight:500;font-size:1.35rem;
     color:var(--texto);margin:0 0 1rem;
@@ -1535,29 +1541,37 @@ function partirFrase(texto){
   };
 }
 
-// La historia del Club vive en la misma pestaña "Quiénes Somos", en dos
-// columnas al final: K TÍTULO HISTORIA y L HISTORIA. Se recorren todas las
-// filas y se usa la primera que tenga texto, así da igual en qué fila se
-// escriba (normalmente la 2, junto a la primera persona).
+// La historia del Club vive en la misma pestaña "Quiénes Somos", en columnas
+// al final: K TÍTULO HISTORIA, L HISTORIA y M FOTO HISTORIA (la foto grupal
+// que sale arriba del texto). Se recorren todas las filas y se usa la primera
+// que tenga algo en cada columna, así da igual en qué fila se escriba
+// (normalmente la 2, junto a la primera persona).
 // Importante: aquí NO se usa normalizarTitulo, porque aplasta los saltos de
 // línea y son justamente los que separan los párrafos.
 function extraerHistoria(filas){
+  let titulo = "", texto = "", foto = "";
   for(let i = 1; i < filas.length; i++){
     const f = filas[i] || [];
-    const texto = (f[11] || "").trim();
-    if(texto){
-      return { titulo: (f[10] || "").trim() || "Cómo empezó todo", texto: texto };
-    }
+    if(!titulo) titulo = (f[10] || "").trim();
+    if(!texto) texto = (f[11] || "").trim();
+    if(!foto) foto = (f[12] || "").trim();
   }
-  return null;
+  if(!texto && !foto) return null;
+  return { titulo: titulo || "Cómo empezó todo", texto: texto, foto: foto };
 }
 
 function bloqueHistoria(h){
   if(!h) return "";
   const parrafos = h.texto.split(/\n+/).map(p => p.trim()).filter(Boolean);
+  // Si el archivo no está en el repo, la foto desaparece sola en vez de
+  // dejar el ícono de imagen rota.
+  const foto = h.foto
+    ? `<img class="foto-historia" src="${h.foto}" alt="Las socias de Letras &amp; Vinos" loading="lazy" decoding="async" onerror="this.remove()">`
+    : "";
   return `
     <section class="historia">
-      <h2>${h.titulo}</h2>
+      ${foto}
+      ${h.texto ? `<h2>${h.titulo}</h2>` : ""}
       ${parrafos.map(p => `<p>${p}</p>`).join("")}
     </section>
   `;
@@ -1996,7 +2010,8 @@ function conectarGrilla(contenedor, selectorFoto){
 }
 
 conectarGrilla(gridEventos, ".foto-evento");
-conectarGrilla(gridQuienes, ".foto-equipo");
+// La foto grupal de la historia usa el mismo visor que las de cada socia.
+conectarGrilla(gridQuienes, ".foto-equipo, .foto-historia");
 
 buscador.addEventListener("input", render);
 filtroGenero.addEventListener("change", render);
