@@ -102,6 +102,7 @@
   }
   .barra input[type="text"]{min-width:220px;flex:1 1 220px;}
   .barra select{cursor:pointer;}
+  #filtroAutor{max-width:240px; text-overflow:ellipsis;}
   .barra label.chk{
     display:flex;align-items:center;gap:0.4rem;
     font-size:0.82rem;color:var(--borgona);
@@ -565,6 +566,7 @@
     }
     .filtros-extra.abierto{display:flex;}
     .filtros-extra select{flex:1 1 45%;}
+    .filtros-extra #filtroAutor{flex:1 1 100%; max-width:none;}
     .filtros-extra label.chk{flex:1 1 100%;justify-content:center;}
     .grid{padding:1rem 1rem 2.5rem; gap:0.8rem;}
     .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
@@ -596,10 +598,11 @@
 
 <div id="vistaLibros" style="display:none;">
   <div class="barra">
-    <input type="text" id="buscador" placeholder="Buscar por título...">
+    <input type="text" id="buscador" placeholder="Buscar por título o autor...">
     <button type="button" class="btn-filtros" id="toggleFiltros">Filtros ⌄</button>
     <div class="filtros-extra" id="filtrosExtra">
       <select id="filtroGenero"><option>Todos los géneros</option></select>
+      <select id="filtroAutor"><option value="">Todos los autores</option></select>
       <select id="filtroTipo">
         <option value="Todos">Pasta blanda y dura</option>
         <option value="Pasta Blanda">Pasta blanda</option>
@@ -776,6 +779,7 @@ const buscador = document.getElementById("buscador");
 const toggleFiltros = document.getElementById("toggleFiltros");
 const filtrosExtra = document.getElementById("filtrosExtra");
 const filtroGenero = document.getElementById("filtroGenero");
+const filtroAutor = document.getElementById("filtroAutor");
 const filtroTipo = document.getElementById("filtroTipo");
 const filtroIdioma = document.getElementById("filtroIdioma");
 const orden = document.getElementById("orden");
@@ -1639,8 +1643,23 @@ function renderEquipo(){
   gridQuienes.innerHTML = bloqueHistoria(HISTORIA) + tarjetas;
 }
 
+// En el Drive, cuando un libro tiene varios autores se separan con "/".
+// Cada autor queda como opción propia del filtro.
+function separarAutores(texto){
+  return (texto || "").split("/").map(a => a.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+// Clave para comparar sin importar mayúsculas ni tildes ("García" = "garcia").
+function claveAutor(a){
+  return a.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+// "A / B / C" se muestra como "A, B y C".
+function autoresBonito(lista){
+  return lista.length > 1 ? lista.slice(0, -1).join(", ") + " y " + lista[lista.length - 1] : (lista[0] || "");
+}
+
 function render(){
   const q = buscador.value.trim().toLowerCase();
+  const au = filtroAutor.value;
   const g = filtroGenero.value;
   const t = filtroTipo.value;
   const idi = filtroIdioma.value;
@@ -1648,8 +1667,9 @@ function render(){
   const ord = orden.value;
 
   let lista = LIBROS.filter(l=>{
-    if(q && !l.titulo.toLowerCase().includes(q)) return false;
+    if(q && !l.titulo.toLowerCase().includes(q) && !(l.autor || "").toLowerCase().includes(q)) return false;
     if(g !== "Todos los géneros" && l.genero !== g) return false;
+    if(au && !(l.autores || []).some(a => claveAutor(a) === au)) return false;
     if(t !== "Todos" && l.tipo !== t) return false;
     if(idi !== "Todos los idiomas" && l.idioma !== idi) return false;
     if(soloDisp && l.disponible <= 0) return false;
@@ -1767,7 +1787,7 @@ function abrirDetalle(libro){
     ${libro.idioma ? `<div class="idioma-tag">${libro.idioma}</div>` : ``}
   `;
   detalleTitulo.textContent = libro.titulo;
-  detalleAutor.textContent = libro.autor ? `por ${libro.autor}` : "";
+  detalleAutor.textContent = libro.autor ? `por ${autoresBonito(separarAutores(libro.autor))}` : "";
   detalleSinopsis.textContent = libro.sinopsis || "";
   detallePrecioFila.innerHTML = `
     <span class="precio">${libro.precio ? 'L.' + libro.precio : ''}</span>
@@ -1892,6 +1912,15 @@ Promise.all([
     LIBROS = procesar(parseCSV(textoInventario), mapaVentas);
     const generos = ["Todos los géneros", ...Array.from(new Set(LIBROS.map(l=>l.genero))).sort()];
     filtroGenero.innerHTML = generos.map(g=>`<option value="${g}">${g}</option>`).join("");
+    // Un libro de varios autores aparece al filtrar por cualquiera de ellos.
+    const autores = new Map();
+    LIBROS.forEach(l => {
+      l.autores = separarAutores(l.autor);
+      l.autores.forEach(a => { const k = claveAutor(a); if(!autores.has(k)) autores.set(k, a); });
+    });
+    filtroAutor.innerHTML = `<option value="">Todos los autores</option>` +
+      [...autores].sort((x, y) => x[1].localeCompare(y[1], "es"))
+        .map(([k, a]) => `<option value="${k.replace(/"/g, "&quot;")}">${a}</option>`).join("");
     const idiomas = ["Todos los idiomas", ...Array.from(new Set(LIBROS.map(l=>l.idioma).filter(Boolean))).sort()];
     filtroIdioma.innerHTML = idiomas.map(i=>`<option value="${i}">${i}</option>`).join("");
     sincronizarCarritoConInventario("libro", LIBROS);
@@ -2015,6 +2044,7 @@ conectarGrilla(gridQuienes, ".foto-equipo, .foto-historia");
 
 buscador.addEventListener("input", render);
 filtroGenero.addEventListener("change", render);
+filtroAutor.addEventListener("change", render);
 filtroTipo.addEventListener("change", render);
 filtroIdioma.addEventListener("change", render);
 orden.addEventListener("change", render);
