@@ -545,10 +545,102 @@
     font-size:0.8rem;
     text-decoration:underline;
   }
+  /* ================= PORTADA DE LIBROS =================
+     Al entrar no se ve el catálogo entero: primero tres carruseles cortos
+     (Descuentos, Nuevos, Más Vendidos) y botones por género. El catálogo
+     completo queda detrás de "Ver todos los libros" y carga de 12 en 12. */
+  .tabs{flex-wrap:wrap;}
+  .tab-descuento{border-color:var(--coral-osc); color:var(--coral-osc);}
+  .tab-descuento.activa{background:var(--coral-osc); border-color:var(--coral-osc); color:#fff;}
+  #portada{max-width:1240px; margin:0 auto; padding:0.6rem 0 2.5rem;}
+  .fila-vitrina{margin:1.4rem 0 0.4rem;}
+  .fila-cabeza{display:flex; align-items:baseline; justify-content:space-between; gap:1rem; padding:0 1.5rem;}
+  .fila-cabeza h2, .explorar h2{
+    font-family:'Fraunces',serif; font-weight:500; font-size:1.35rem; margin:0; color:var(--texto);
+  }
+  .fila-sub{font-size:0.8rem; color:var(--texto-suave); margin:0.25rem 1.5rem 0;}
+  .ver-todo{
+    background:none; border:none; padding:0; cursor:pointer; white-space:nowrap;
+    font-family:'Inter',sans-serif; font-size:0.82rem; font-weight:600; color:var(--borgona);
+  }
+  .envoltura-carrusel{position:relative;}
+  .carrusel{
+    display:flex; gap:1rem; overflow-x:auto; scroll-snap-type:x mandatory;
+    padding:0.9rem 1.5rem 0.6rem; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  }
+  .carrusel::-webkit-scrollbar{display:none;}
+  .flecha{
+    position:absolute; top:42%; transform:translateY(-50%); z-index:2;
+    width:38px; height:38px; border-radius:50%; border:1px solid var(--linea);
+    background:#fff; color:var(--borgona); font-size:1.2rem; cursor:pointer;
+    box-shadow:0 4px 12px rgba(58,51,53,0.12);
+  }
+  .flecha.izq{left:0.4rem;} .flecha.der{right:0.4rem;}
+  .mini{
+    flex:0 0 168px; scroll-snap-align:start; cursor:pointer;
+    background:#fff; border:1px solid var(--linea); border-radius:12px; overflow:hidden;
+    display:flex; flex-direction:column; transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .mini:hover{transform:translateY(-2px); box-shadow:0 8px 18px rgba(58,51,53,0.1);}
+  .mini-foto{position:relative; aspect-ratio:3/4; background:var(--porcelana);}
+  .mini-foto img{width:100%; height:100%; object-fit:cover; display:block;}
+  .mini-foto .foto-vacia{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces',serif; font-style:italic; font-size:0.8rem; color:var(--texto-suave);
+  }
+  .etiqueta-foto{
+    position:absolute; top:0.5rem; left:0.5rem; font-size:0.68rem; font-weight:700;
+    padding:0.22rem 0.55rem; border-radius:999px; color:#fff; background:var(--coral-osc);
+  }
+  .etiqueta-foto.nuevo{background:#1F6E63;}
+  .etiqueta-foto.top{background:var(--borgona);}
+  .etiqueta-foto.agotado{background:#7A7275;}
+  .mini-cuerpo{padding:0.6rem 0.7rem 0.75rem; display:flex; flex-direction:column; gap:0.15rem; flex:1;}
+  .mini h4{
+    font-family:'Fraunces',serif; font-weight:500; font-size:0.9rem; line-height:1.25; margin:0;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .mini-autor{font-size:0.7rem; color:var(--texto-suave); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .mini .precio{font-size:0.95rem; margin-top:auto; padding-top:0.3rem;}
+  .precio-antes{font-size:0.78em; font-weight:400; color:var(--texto-suave); text-decoration:line-through; margin-right:0.3rem;}
+  .precio.rebajado{color:var(--coral-osc);}
+  .explorar{padding:1.6rem 1.5rem 0; text-align:center;}
+  .chips{display:flex; flex-wrap:wrap; justify-content:center; gap:0.55rem; margin:0.9rem 0 1.4rem;}
+  .chip{
+    font-family:'Inter',sans-serif; font-size:0.82rem; cursor:pointer;
+    padding:0.5rem 0.95rem; border-radius:999px; border:1px solid var(--linea);
+    background:#fff; color:var(--texto);
+  }
+  .chip span{color:var(--texto-suave); font-size:0.72rem; margin-left:0.25rem;}
+  .chip:hover{border-color:var(--borgona); color:var(--borgona);}
+  .btn-ver-todos{width:auto; display:inline-block; padding:0.75rem 1.6rem;}
+  .volver{
+    display:block; margin:1rem auto 0; background:none; border:none; cursor:pointer;
+    font-family:'Inter',sans-serif; font-size:0.85rem; font-weight:600; color:var(--borgona);
+  }
+  .ver-mas{display:block; width:auto; margin:-1.5rem auto 3rem; padding:0.7rem 1.6rem;}
+  .portada-descuentos{
+    max-width:760px; margin:1.6rem auto 0.4rem; padding:1.3rem 1.5rem; text-align:center;
+    background:var(--rosa-niebla); border-radius:16px;
+  }
+  .portada-descuentos h2{font-family:'Fraunces',serif; font-weight:500; font-size:1.6rem; margin:0 0 0.3rem; color:var(--borgona-osc);}
+  .portada-descuentos p{margin:0; font-size:0.86rem; color:var(--texto); line-height:1.5;}
+  .card .etiqueta-foto{z-index:1;}
+  .card .marco-foto{position:relative;}
+  .fila-precio{flex-wrap:wrap; gap:0.35rem;}
+
   @media (max-width:640px){
     header{padding:1.6rem 1rem 1.2rem;}
     .tabs{padding:0 1rem 0.8rem; gap:0.5rem;}
     .tab{padding:0.5rem 1rem; font-size:0.8rem;}
+    .fila-cabeza{padding:0 1rem;} .fila-sub{margin:0.2rem 1rem 0;}
+    .fila-cabeza h2, .explorar h2{font-size:1.15rem;}
+    .carrusel{padding:0.8rem 1rem 0.5rem; gap:0.7rem;}
+    .mini{flex-basis:132px;}
+    .flecha{display:none;}
+    .explorar{padding:1.3rem 1rem 0;}
+    .portada-descuentos{margin:1rem 0.8rem 0.2rem; padding:1.1rem;}
+    .portada-descuentos h2{font-size:1.3rem;}
     .barra{
       flex-direction:column;
       align-items:stretch;
@@ -592,6 +684,7 @@
 <div class="tabs">
   <button type="button" class="tab activa" id="tabQuienes">Quiénes Somos</button>
   <button type="button" class="tab" id="tabLibros">Libros</button>
+  <button type="button" class="tab tab-descuento" id="tabDescuentos">Descuentos del Mes</button>
   <button type="button" class="tab" id="tabInsumos">Experiencia Literaria</button>
   <button type="button" class="tab" id="tabEventos">Eventos</button>
 </div>
@@ -618,9 +711,41 @@
     </div>
   </div>
 
-  <p class="contador" id="contador"></p>
+  <div id="portada">
+    <section class="fila-vitrina" id="filaDescuentos" hidden>
+      <div class="fila-cabeza"><h2>Descuentos del Mes</h2><button type="button" class="ver-todo" data-ver="descuentos">Ver todos →</button></div>
+      <p class="fila-sub" id="subFilaDescuentos"></p>
+      <div class="envoltura-carrusel"><div class="carrusel" id="carDescuentos"></div></div>
+    </section>
+    <section class="fila-vitrina" id="filaNuevos" hidden>
+      <div class="fila-cabeza"><h2 id="tituloNuevos">Nuevos Ingresos del Mes</h2><button type="button" class="ver-todo" data-ver="nuevos">Ver todos →</button></div>
+      <div class="envoltura-carrusel"><div class="carrusel" id="carNuevos"></div></div>
+    </section>
+    <section class="fila-vitrina" id="filaMasVendidos" hidden>
+      <div class="fila-cabeza"><h2 id="tituloMasVendidos">Los Más Vendidos del Mes</h2><button type="button" class="ver-todo" data-ver="masVendidos">Ver todos →</button></div>
+      <div class="envoltura-carrusel"><div class="carrusel" id="carMasVendidos"></div></div>
+    </section>
+    <section class="explorar">
+      <h2>Explora por género</h2>
+      <div class="chips" id="chipsGenero"><span class="cargando">Cargando…</span></div>
+      <button type="button" class="btn activo btn-ver-todos" id="verTodos">Ver todos los libros</button>
+    </section>
+  </div>
 
-  <div class="grid" id="grid"><div class="cargando">Cargando catálogo…</div></div>
+  <div id="catalogoCompleto" hidden>
+    <button type="button" class="volver" id="volverPortada">← Volver al inicio de Libros</button>
+    <p class="contador" id="contador"></p>
+    <div class="grid" id="grid"><div class="cargando">Cargando catálogo…</div></div>
+    <button type="button" class="btn activo ver-mas" id="verMas" hidden>Ver más libros</button>
+  </div>
+</div>
+
+<div id="vistaDescuentos" style="display:none;">
+  <div class="portada-descuentos">
+    <h2 id="tituloDescuentos">Descuentos del Mes</h2>
+    <p id="textoDescuentos">Cada mes elegimos libros con un descuento especial.</p>
+  </div>
+  <div class="grid" id="gridDescuentos"><div class="cargando">Cargando descuentos…</div></div>
 </div>
 
 <div id="vistaInsumos" style="display:none;">
@@ -774,6 +899,13 @@ const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbz0dFtc_8wt70-J
 const URL_PAGO = "PENDIENTE_LINK_DE_PAGO_TODOPAGO";
 
 const grid = document.getElementById("grid");
+const portada = document.getElementById("portada");
+const catalogoCompleto = document.getElementById("catalogoCompleto");
+const verMas = document.getElementById("verMas");
+const chipsGenero = document.getElementById("chipsGenero");
+const tabDescuentos = document.getElementById("tabDescuentos");
+const vistaDescuentos = document.getElementById("vistaDescuentos");
+const gridDescuentos = document.getElementById("gridDescuentos");
 const contador = document.getElementById("contador");
 const buscador = document.getElementById("buscador");
 const toggleFiltros = document.getElementById("toggleFiltros");
@@ -850,6 +982,10 @@ let EQUIPO = [];
 let libroActivo = null;
 let CARRITO = [];
 let listaVisible = []; // último resultado filtrado que se dibujó en #grid
+let VITRINA = null;    // lo que manda el Apps Script: descuentos, nuevos y más vendidos del mes
+const POR_PAGINA = 12;
+let limite = POR_PAGINA;
+let coleccion = null;  // {nombre, claves} cuando se entra por "Ver todos" de Nuevos o Más Vendidos
 
 function parseCSV(texto){
   const filas = [];
@@ -1052,7 +1188,7 @@ function procesar(filas, mapaVentas){
 }
 
 function mensajeWhatsapp(libro){
-  const texto = `Hola! Me interesa el libro "${libro.titulo}" (L.${libro.precio}). ¿Está disponible?`;
+  const texto = `Hola! Me interesa el libro "${libro.titulo}" (${formatoLempiras(libro.precio)}). ¿Está disponible?`;
   return `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(texto)}`;
 }
 
@@ -1164,8 +1300,8 @@ function sincronizarCarritoConInventario(tipo, fuente){
 }
 
 function mensajeWhatsappCarrito(){
-  const lineas = CARRITO.map(c => `• ${c.titulo} x${c.cantidad} — L.${c.precio * c.cantidad}`);
-  const texto = `Hola! Quiero hacer este pedido:\n\n${lineas.join("\n")}\n\nTotal: L.${totalCarrito()}`;
+  const lineas = CARRITO.map(c => `• ${c.titulo} x${c.cantidad} — ${formatoLempiras(c.precio * c.cantidad)}`);
+  const texto = `Hola! Quiero hacer este pedido:\n\n${lineas.join("\n")}\n\nTotal: ${formatoLempiras(totalCarrito())}`;
   return `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(texto)}`;
 }
 
@@ -1186,7 +1322,7 @@ function renderCarrito(){
         : `<div class="foto-vacia-mini"></div>`}
       <div class="info">
         <div class="nombre">${c.titulo}</div>
-        <div class="precio-u">L.${c.precio} c/u</div>
+        <div class="precio-u">${formatoLempiras(c.precio)} c/u</div>
       </div>
       <div class="cantidad">
         <button type="button" class="menos" data-idx="${i}" aria-label="Quitar uno">−</button>
@@ -1201,7 +1337,7 @@ function renderCarrito(){
   listaCarrito.querySelectorAll(".mas").forEach(b => b.addEventListener("click", () => cambiarCantidad(parseInt(b.dataset.idx), 1)));
   listaCarrito.querySelectorAll(".quitar").forEach(b => b.addEventListener("click", () => quitarDelCarrito(parseInt(b.dataset.idx))));
 
-  totalCarritoEl.innerHTML = `<span>Total</span><span>L.${totalCarrito()}</span>`;
+  totalCarritoEl.innerHTML = `<span>Total</span><span>${formatoLempiras(totalCarrito())}</span>`;
   btnWhatsappCarrito.style.display = "block";
   btnWhatsappCarrito.href = mensajeWhatsappCarrito();
 
@@ -1657,6 +1793,84 @@ function autoresBonito(lista){
   return lista.length > 1 ? lista.slice(0, -1).join(", ") + " y " + lista[lista.length - 1] : (lista[0] || "");
 }
 
+// Clave de título igual a la del Apps Script y el bot: sin tildes,
+// mayúsculas y espacios simples.
+function claveVitrina(texto){
+  return String(texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toUpperCase().replace(/\s+/g, " ").trim();
+}
+
+function formatoLempiras(n){
+  n = Math.round((Number(n) || 0) * 100) / 100;
+  return "L." + (Number.isInteger(n) ? n : n.toFixed(2));
+}
+
+// Precio con el de antes tachado cuando el libro está en Descuentos del Mes.
+function precioHTML(l){
+  if(!l.precio) return "";
+  if(l.precioLista) return `<span class="precio rebajado"><span class="precio-antes">${formatoLempiras(l.precioLista)}</span>${formatoLempiras(l.precio)}</span>`;
+  return `<span class="precio">${formatoLempiras(l.precio)}</span>`;
+}
+
+function etiquetaDescuento(l){
+  return l.precioLista ? `<span class="etiqueta-foto">-${VITRINA.descuentos.porcentaje}%</span>` : "";
+}
+
+function tarjetaLibro(l, i){
+  return `
+    <div class="card">
+      <div class="marco-foto">
+      ${etiquetaDescuento(l)}
+      ${l.foto
+        ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" decoding="async" data-idx="${i}" onerror="this.outerHTML='<div class=\\'foto-vacia\\' data-idx=\\'${i}\\'>Letras &amp; Vinos</div>'">`
+        : `<div class="foto-vacia" data-idx="${i}">Letras &amp; Vinos</div>`}
+      </div>
+      <div class="cuerpo">
+        <div class="badges">
+          <div class="genero-tag">${l.genero}</div>
+          ${l.tipo ? `<div class="tipo-tag">${l.tipo}</div>` : ``}
+          ${l.idioma ? `<div class="idioma-tag">${l.idioma}</div>` : ``}
+        </div>
+        <h3>${l.titulo}</h3>
+        ${l.sinopsis ? `<p class="sinopsis" data-idx="${i}">${l.sinopsis}</p><button type="button" class="leer-mas" data-idx="${i}">Leer más</button>` : ``}
+        <div class="fila-precio">
+          ${precioHTML(l)}
+          <span class="estado ${l.disponible > 0 ? 'disp':'agot'}">${l.disponible > 0 ? 'Disponible':'Agotado'}</span>
+        </div>
+        ${l.disponible > 0
+          ? `<button type="button" class="btn activo btn-agregar" data-idx="${i}">Agregar al carrito</button>`
+          : `<button type="button" class="btn solicitar" data-idx="${i}">Solicitar este libro</button>`
+        }
+      </div>
+    </div>`;
+}
+
+// Dibuja tarjetas de libro en cualquier grilla (catálogo o descuentos) y
+// deja guardada la lista para los clics delegados de la foto.
+function pintarTarjetas(contenedor, lista){
+  contenedor._lista = lista;
+  contenedor.innerHTML = lista.map((l, i) => tarjetaLibro(l, i)).join("");
+  contenedor.querySelectorAll(".btn.solicitar").forEach(btn=>{
+    btn.addEventListener("click", ()=> abrirModal(lista[parseInt(btn.dataset.idx)]));
+  });
+  contenedor.querySelectorAll(".btn-agregar").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      agregarAlCarrito("libro", lista[parseInt(btn.dataset.idx)]);
+      const original = btn.textContent;
+      btn.textContent = "¡Agregado! ✓";
+      setTimeout(()=>{ btn.textContent = original; }, 1200);
+    });
+  });
+  contenedor.querySelectorAll(".leer-mas").forEach(link=>{
+    link.addEventListener("click", ()=> abrirDetalle(lista[parseInt(link.dataset.idx)]));
+  });
+  // Solo muestra "Leer más" cuando la sinopsis realmente quedó cortada.
+  contenedor.querySelectorAll(".sinopsis").forEach(p=>{
+    const link = contenedor.querySelector(`.leer-mas[data-idx="${p.dataset.idx}"]`);
+    if(link && p.scrollHeight > p.clientHeight + 1) link.style.display = "inline-block";
+  });
+}
+
 function render(){
   const q = buscador.value.trim().toLowerCase();
   const au = filtroAutor.value;
@@ -1667,6 +1881,7 @@ function render(){
   const ord = orden.value;
 
   let lista = LIBROS.filter(l=>{
+    if(coleccion && !coleccion.claves.includes(claveVitrina(l.titulo))) return false;
     if(q && !l.titulo.toLowerCase().includes(q) && !(l.autor || "").toLowerCase().includes(q)) return false;
     if(g !== "Todos los géneros" && l.genero !== g) return false;
     if(au && !(l.autores || []).some(a => claveAutor(a) === au)) return false;
@@ -1676,66 +1891,153 @@ function render(){
     return true;
   });
 
-  if(ord === "alfa") lista.sort((a,b)=>a.titulo.localeCompare(b.titulo,'es'));
+  if(coleccion && ord === "alfa"){
+    // Dentro de una colección se respeta su orden (el más vendido primero).
+    lista.sort((a,b)=>coleccion.claves.indexOf(claveVitrina(a.titulo)) - coleccion.claves.indexOf(claveVitrina(b.titulo)));
+  } else if(ord === "alfa") lista.sort((a,b)=>a.titulo.localeCompare(b.titulo,'es'));
   if(ord === "precioAsc") lista.sort((a,b)=>a.precio-b.precio);
   if(ord === "precioDesc") lista.sort((a,b)=>b.precio-a.precio);
 
-  listaVisible = lista;
-  contador.textContent = `Mostrando ${lista.length} de ${LIBROS.length} libros`;
+  const visibles = lista.slice(0, limite);
+  listaVisible = visibles;
+  contador.textContent = (coleccion ? coleccion.nombre + " · " : "") +
+    `Mostrando ${visibles.length} de ${lista.length} libros`;
+  verMas.hidden = visibles.length >= lista.length;
 
   if(lista.length === 0){
     grid.innerHTML = `<div class="vacio">No encontramos libros con esos filtros. Prueba con otra búsqueda o género.</div>`;
     return;
   }
+  pintarTarjetas(grid, visibles);
+}
 
-  grid.innerHTML = lista.map((l,i)=>`
-    <div class="card">
-      ${l.foto
-        ? `<img class="foto" src="${l.foto}" alt="${l.titulo}" loading="lazy" decoding="async" data-idx="${i}" onerror="this.outerHTML='<div class=\\'foto-vacia\\' data-idx=\\'${i}\\'>Letras &amp; Vinos</div>'">`
-        : `<div class="foto-vacia" data-idx="${i}">Letras &amp; Vinos</div>`}
-      <div class="cuerpo">
-        <div class="badges">
-          <div class="genero-tag">${l.genero}</div>
-          ${l.tipo ? `<div class="tipo-tag">${l.tipo}</div>` : ``}
-          ${l.idioma ? `<div class="idioma-tag">${l.idioma}</div>` : ``}
-        </div>
-        <h3>${l.titulo}</h3>
-        ${l.sinopsis ? `<p class="sinopsis" id="sinopsis-${i}">${l.sinopsis}</p><button type="button" class="leer-mas" data-idx="${i}">Leer más</button>` : ``}
-        <div class="fila-precio">
-          <span class="precio">${l.precio ? 'L.' + l.precio : ''}</span>
-          <span class="estado ${l.disponible > 0 ? 'disp':'agot'}">${l.disponible > 0 ? 'Disponible':'Agotado'}</span>
-        </div>
-        ${l.disponible > 0
-          ? `<button type="button" class="btn activo btn-agregar" data-idx="${i}">Agregar al carrito</button>`
-          : `<button type="button" class="btn solicitar" data-idx="${i}">Solicitar este libro</button>`
-        }
+// ---------- Portada de Libros ----------
+function mostrarCatalogo(){
+  portada.hidden = true;
+  catalogoCompleto.hidden = false;
+}
+
+function volverAPortada(){
+  buscador.value = "";
+  [filtroGenero, filtroAutor, filtroTipo, filtroIdioma, orden].forEach(s => s.selectedIndex = 0);
+  soloDisponibles.checked = false;
+  coleccion = null;
+  limite = POR_PAGINA;
+  catalogoCompleto.hidden = true;
+  portada.hidden = false;
+  render();
+  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Cualquier búsqueda o filtro lleva al catálogo completo, desde la página 1.
+function filtrosCambiaron(){
+  limite = POR_PAGINA;
+  mostrarCatalogo();
+  render();
+}
+
+function buscarLibroPorClave(clave){
+  return LIBROS.find(l => claveVitrina(l.titulo) === clave);
+}
+
+function tarjetaMini(l, i, etiqueta){
+  return `
+    <article class="mini" data-idx="${i}">
+      <div class="mini-foto">
+        ${l.foto ? `<img src="${l.foto}" alt="${l.titulo}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'foto-vacia\\'>Letras &amp; Vinos</div>'">`
+                 : `<div class="foto-vacia">Letras &amp; Vinos</div>`}
+        ${l.disponible <= 0 ? `<span class="etiqueta-foto agotado">Agotado</span>` : etiqueta}
       </div>
-    </div>
-  `).join("");
+      <div class="mini-cuerpo">
+        <h4>${l.titulo}</h4>
+        <p class="mini-autor">${l.autor ? autoresBonito(separarAutores(l.autor)) : "&nbsp;"}</p>
+        ${precioHTML(l)}
+      </div>
+    </article>`;
+}
 
-  grid.querySelectorAll(".btn.solicitar").forEach(btn=>{
-    btn.addEventListener("click", ()=> abrirModal(lista[parseInt(btn.dataset.idx)]));
-  });
-  grid.querySelectorAll(".btn-agregar").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      agregarAlCarrito("libro", lista[parseInt(btn.dataset.idx)]);
-      const original = btn.textContent;
-      btn.textContent = "¡Agregado! ✓";
-      setTimeout(()=>{ btn.textContent = original; }, 1200);
-    });
-  });
-  grid.querySelectorAll(".leer-mas").forEach(link=>{
-    link.addEventListener("click", ()=> abrirDetalle(lista[parseInt(link.dataset.idx)]));
-  });
-  // Solo muestra "Leer más" cuando la sinopsis realmente quedó cortada
-  // por el line-clamp (si cupo completa, el enlace se queda oculto).
-  grid.querySelectorAll(".sinopsis").forEach(p=>{
-    const idx = p.id.replace("sinopsis-","");
-    const link = grid.querySelector(`.leer-mas[data-idx="${idx}"]`);
-    if(link && p.scrollHeight > p.clientHeight + 1){
-      link.style.display = "inline-block";
+function llenarCarrusel(id, libros, etiqueta){
+  const car = document.getElementById(id);
+  car._lista = libros;
+  car.innerHTML = libros.map((l, i) => tarjetaMini(l, i, typeof etiqueta === "function" ? etiqueta(l, i) : etiqueta)).join("");
+  car.scrollLeft = 0;
+}
+
+function librosDeClaves(claves){
+  return claves.map(buscarLibroPorClave).filter(Boolean);
+}
+
+function ultimoDiaDelMes(mes){
+  const [a, m] = mes.split("-").map(Number);
+  return new Date(a, m, 0).getDate();
+}
+
+function renderPortada(){
+  // Géneros: solo los que tienen algo disponible, con cuántos hay.
+  const conteo = {};
+  LIBROS.forEach(l => { if(l.disponible > 0) conteo[l.genero] = (conteo[l.genero] || 0) + 1; });
+  chipsGenero.innerHTML = Object.keys(conteo).sort((a,b)=>a.localeCompare(b,'es'))
+    .map(g => `<button type="button" class="chip" data-genero="${g}">${g}<span>${conteo[g]}</span></button>`).join("");
+  document.getElementById("verTodos").textContent = `Ver todos los libros (${LIBROS.length})`;
+
+  const filaD = document.getElementById("filaDescuentos");
+  const filaN = document.getElementById("filaNuevos");
+  const filaM = document.getElementById("filaMasVendidos");
+  if(!VITRINA || !LIBROS.length){ filaD.hidden = filaN.hidden = filaM.hidden = true; return; }
+
+  const desc = librosDeClaves(VITRINA.descuentos.titulos.map(x => x[0])).filter(l => l.disponible > 0);
+  filaD.hidden = !desc.length;
+  document.getElementById("subFilaDescuentos").textContent =
+    `${VITRINA.descuentos.porcentaje}% menos, solo hasta el ${ultimoDiaDelMes(VITRINA.mes)} de ${VITRINA.nombreMes}.`;
+  llenarCarrusel("carDescuentos", desc, l => etiquetaDescuento(l));
+
+  const nuevos = librosDeClaves(VITRINA.nuevos.titulos).filter(l => l.disponible > 0);
+  filaN.hidden = !nuevos.length;
+  document.getElementById("tituloNuevos").textContent =
+    VITRINA.nuevos.mes === VITRINA.mes ? "Nuevos Ingresos del Mes" : `Nuevos Ingresos de ${capitalizar(VITRINA.nuevos.nombreMes)}`;
+  llenarCarrusel("carNuevos", nuevos, l => l.precioLista ? etiquetaDescuento(l) : `<span class="etiqueta-foto nuevo">Nuevo</span>`);
+
+  const top = librosDeClaves(VITRINA.masVendidos.titulos.map(x => x[0]));
+  filaM.hidden = !top.length;
+  document.getElementById("tituloMasVendidos").textContent =
+    VITRINA.masVendidos.mes === VITRINA.mes ? "Los Más Vendidos del Mes" : `Los Más Vendidos de ${capitalizar(VITRINA.masVendidos.nombreMes)}`;
+  llenarCarrusel("carMasVendidos", top, (l, i) => l.precioLista ? etiquetaDescuento(l) : `<span class="etiqueta-foto top">#${i + 1}</span>`);
+}
+
+function renderDescuentos(){
+  if(!VITRINA){ return; }
+  const lista = librosDeClaves(VITRINA.descuentos.titulos.map(x => x[0])).filter(l => l.disponible > 0);
+  document.getElementById("tituloDescuentos").textContent = `Descuentos de ${capitalizar(VITRINA.nombreMes)}`;
+  document.getElementById("textoDescuentos").textContent =
+    `${VITRINA.descuentos.porcentaje}% de descuento en estos libros elegidos para ti. ` +
+    `Válido hasta el ${ultimoDiaDelMes(VITRINA.mes)} de ${VITRINA.nombreMes} o hasta agotar existencias. ` +
+    `Cada mes cambia la selección.`;
+  if(!lista.length){
+    gridDescuentos.innerHTML = `<div class="vacio">Los libros en descuento de este mes ya se agotaron. ¡Espera la selección del próximo mes!</div>`;
+    return;
+  }
+  pintarTarjetas(gridDescuentos, lista);
+}
+
+// Pone el precio rebajado a los libros en descuento (en el propio LIBROS, así
+// el carrito, la ficha y el mensaje de WhatsApp usan el mismo precio). Se puede
+// llamar varias veces: siempre parte del precio de lista.
+function aplicarVitrina(){
+  if(!LIBROS.length) return;
+  const enDescuento = new Set(VITRINA ? VITRINA.descuentos.titulos.map(x => x[0]) : []);
+  const pct = VITRINA ? VITRINA.descuentos.porcentaje : 0;
+  LIBROS.forEach(l => {
+    if(l.precioLista){ l.precio = l.precioLista; delete l.precioLista; }
+    if(pct && l.precio && enDescuento.has(claveVitrina(l.titulo))){
+      l.precioLista = l.precio;
+      l.precio = Math.round(l.precio * (100 - pct)) / 100;
     }
   });
+  sincronizarCarritoConInventario("libro", LIBROS);
+  renderCarrito();
+  renderPortada();
+  renderDescuentos();
+  render();
 }
 
 // modo "agotado" (default): el libro sí está en el inventario pero sin
@@ -1790,7 +2092,7 @@ function abrirDetalle(libro){
   detalleAutor.textContent = libro.autor ? `por ${autoresBonito(separarAutores(libro.autor))}` : "";
   detalleSinopsis.textContent = libro.sinopsis || "";
   detallePrecioFila.innerHTML = `
-    <span class="precio">${libro.precio ? 'L.' + libro.precio : ''}</span>
+    ${precioHTML(libro)}
     <span class="estado ${libro.disponible > 0 ? 'disp':'agot'}">${libro.disponible > 0 ? 'Disponible':'Agotado'}</span>
   `;
   if(libro.disponible > 0){
@@ -1924,7 +2226,7 @@ Promise.all([
     const idiomas = ["Todos los idiomas", ...Array.from(new Set(LIBROS.map(l=>l.idioma).filter(Boolean))).sort()];
     filtroIdioma.innerHTML = idiomas.map(i=>`<option value="${i}">${i}</option>`).join("");
     sincronizarCarritoConInventario("libro", LIBROS);
-    render();
+    aplicarVitrina();
     // Los eventos pueden haber cargado antes que los libros (o al revés);
     // se vuelven a dibujar aquí para que el enlace "Ver libro y comprar"
     // encuentre la coincidencia sin importar el orden de llegada.
@@ -1932,18 +2234,88 @@ Promise.all([
   })
   .catch(err => {
     grid.innerHTML = `<div class="vacio">No pudimos cargar el catálogo en este momento. Intenta de nuevo en unos minutos.</div>`;
+    mostrarCatalogo();
   });
 
 // Delegado (no dentro de render): así sigue funcionando aunque una
 // foto rota se reemplace sola por el marcador "Letras & Vinos" con
 // onerror — ese reemplazo pierde cualquier listener puesto directo
 // sobre la imagen, pero no uno puesto sobre #grid.
-grid.addEventListener("click", (e) => {
+[grid, gridDescuentos].forEach(contenedor => contenedor.addEventListener("click", (e) => {
   const el = e.target.closest(".foto, .foto-vacia");
   if(!el) return;
   const idx = parseInt(el.dataset.idx);
-  if(!isNaN(idx) && listaVisible[idx]) abrirDetalle(listaVisible[idx]);
+  const lista = contenedor._lista || [];
+  if(!isNaN(idx) && lista[idx]) abrirDetalle(lista[idx]);
+}));
+
+// Carruseles: tocar un libro abre su ficha; en computadora hay flechas.
+["carDescuentos", "carNuevos", "carMasVendidos"].forEach(id => {
+  const car = document.getElementById(id);
+  car.addEventListener("click", (e) => {
+    const mini = e.target.closest(".mini");
+    if(mini && car._lista) abrirDetalle(car._lista[parseInt(mini.dataset.idx)]);
+  });
+  const envoltura = car.parentElement;
+  [["izq", -1, "‹"], ["der", 1, "›"]].forEach(([lado, dir, simbolo]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "flecha " + lado; b.textContent = simbolo;
+    b.setAttribute("aria-label", dir < 0 ? "Anteriores" : "Siguientes");
+    b.addEventListener("click", () => car.scrollBy({ left: dir * car.clientWidth * 0.8, behavior: "smooth" }));
+    envoltura.appendChild(b);
+  });
 });
+
+chipsGenero.addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if(!chip) return;
+  filtroGenero.value = chip.dataset.genero;
+  filtrosCambiaron();
+  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.getElementById("verTodos").addEventListener("click", () => {
+  filtrosCambiaron();
+  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.getElementById("volverPortada").addEventListener("click", volverAPortada);
+verMas.addEventListener("click", () => { limite += POR_PAGINA; render(); });
+document.querySelectorAll(".ver-todo").forEach(b => b.addEventListener("click", () => {
+  const cual = b.dataset.ver;
+  if(cual === "descuentos"){ tabDescuentos.click(); return; }
+  coleccion = cual === "nuevos"
+    ? { nombre: document.getElementById("tituloNuevos").textContent, claves: VITRINA.nuevos.titulos }
+    : { nombre: document.getElementById("tituloMasVendidos").textContent, claves: VITRINA.masVendidos.titulos.map(x => x[0]) };
+  filtrosCambiaron();
+  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
+}));
+
+// ---------- Vitrina del mes (Apps Script) ----------
+// Se guarda la última en el navegador para que la portada aparezca al
+// instante; luego se pide la fresca y se repinta si cambió.
+const CLAVE_VITRINA = "lyv_vitrina_v1";
+function mesActualLocal(){
+  const h = new Date();
+  return h.getFullYear() + "-" + String(h.getMonth() + 1).padStart(2, "0");
+}
+try{
+  const guardada = JSON.parse(localStorage.getItem(CLAVE_VITRINA) || "null");
+  if(guardada && guardada.mes === mesActualLocal()) VITRINA = guardada;
+} catch(e){}
+fetch(URL_APPS_SCRIPT + "?vitrina=1")
+  .then(r => r.json())
+  .then(datos => {
+    if(!datos || !datos.ok || !datos.descuentos) throw new Error("vitrina_invalida");
+    const cambio = JSON.stringify(datos.descuentos) + JSON.stringify(datos.nuevos) + JSON.stringify(datos.masVendidos) !==
+      (VITRINA ? JSON.stringify(VITRINA.descuentos) + JSON.stringify(VITRINA.nuevos) + JSON.stringify(VITRINA.masVendidos) : "");
+    VITRINA = datos;
+    try{ localStorage.setItem(CLAVE_VITRINA, JSON.stringify(datos)); } catch(e){}
+    if(cambio) aplicarVitrina();
+  })
+  .catch(() => {
+    if(!VITRINA){
+      gridDescuentos.innerHTML = `<div class="vacio">No pudimos cargar los descuentos en este momento. Intenta de nuevo en unos minutos.</div>`;
+    }
+  });
 
 // Visor de fotos (eventos y equipo): abre las fotos en grande por encima de
 // todo. Recibe la lista completa de fotos y cuál se tocó, para poder
@@ -2042,13 +2414,13 @@ conectarGrilla(gridEventos, ".foto-evento");
 // La foto grupal de la historia usa el mismo visor que las de cada socia.
 conectarGrilla(gridQuienes, ".foto-equipo, .foto-historia");
 
-buscador.addEventListener("input", render);
-filtroGenero.addEventListener("change", render);
-filtroAutor.addEventListener("change", render);
-filtroTipo.addEventListener("change", render);
-filtroIdioma.addEventListener("change", render);
-orden.addEventListener("change", render);
-soloDisponibles.addEventListener("change", render);
+buscador.addEventListener("input", filtrosCambiaron);
+filtroGenero.addEventListener("change", filtrosCambiaron);
+filtroAutor.addEventListener("change", filtrosCambiaron);
+filtroTipo.addEventListener("change", filtrosCambiaron);
+filtroIdioma.addEventListener("change", filtrosCambiaron);
+orden.addEventListener("change", filtrosCambiaron);
+soloDisponibles.addEventListener("change", filtrosCambiaron);
 
 if(URL_CSV_INSUMOS.indexOf("PENDIENTE") === 0){
   gridInsumos.innerHTML = `<div class="vacio">La Experiencia Literaria todavía no está activada.</div>`;
@@ -2109,6 +2481,7 @@ if(URL_CSV_QUIENES.indexOf("PENDIENTE") === 0){
 const PESTANAS = [
   { tab: tabQuienes, vista: vistaQuienes },
   { tab: tabLibros, vista: vistaLibros },
+  { tab: tabDescuentos, vista: vistaDescuentos },
   { tab: tabInsumos, vista: vistaInsumos },
   { tab: tabEventos, vista: vistaEventos },
 ];
