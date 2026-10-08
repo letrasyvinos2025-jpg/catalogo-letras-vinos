@@ -549,7 +549,14 @@
      Al entrar no se ve el catálogo entero: primero tres carruseles cortos
      (Descuentos, Nuevos, Más Vendidos) y botones por género. El catálogo
      completo queda detrás de "Ver todos los libros" y carga de 12 en 12. */
+  /* El atributo hidden siempre gana: antes ".ver-mas{display:block}" lo
+     anulaba y el botón "Ver más libros" salía aunque ya no hubiera más. */
+  [hidden]{display:none !important;}
   .tabs{flex-wrap:wrap;}
+  .fila-cabeza h2 small{font-family:'Inter',sans-serif; font-size:0.78rem; font-weight:400; color:var(--texto-suave); margin-left:0.35rem;}
+  .barra-volver{display:flex; justify-content:center; padding:0.4rem 1rem 0;}
+  .barra-volver.abajo{padding:0 1rem 2.5rem;}
+  .nota-transferencia{font-size:0.75rem; color:var(--coral-osc); text-align:center; margin:0.6rem 0 0; line-height:1.4;}
   .tab-descuento{border-color:var(--coral-osc); color:var(--coral-osc);}
   .tab-descuento.activa{background:var(--coral-osc); border-color:var(--coral-osc); color:#fff;}
   #portada{max-width:1240px; margin:0 auto; padding:0.6rem 0 2.5rem;}
@@ -712,40 +719,29 @@
   </div>
 
   <div id="portada">
-    <section class="fila-vitrina" id="filaDescuentos" hidden>
-      <div class="fila-cabeza"><h2>Descuentos del Mes</h2><button type="button" class="ver-todo" data-ver="descuentos">Ver todos →</button></div>
-      <p class="fila-sub" id="subFilaDescuentos"></p>
-      <div class="envoltura-carrusel"><div class="carrusel" id="carDescuentos"></div></div>
-    </section>
-    <section class="fila-vitrina" id="filaNuevos" hidden>
-      <div class="fila-cabeza"><h2 id="tituloNuevos">Nuevos Ingresos del Mes</h2><button type="button" class="ver-todo" data-ver="nuevos">Ver todos →</button></div>
-      <div class="envoltura-carrusel"><div class="carrusel" id="carNuevos"></div></div>
-    </section>
-    <section class="fila-vitrina" id="filaMasVendidos" hidden>
-      <div class="fila-cabeza"><h2 id="tituloMasVendidos">Los Más Vendidos del Mes</h2><button type="button" class="ver-todo" data-ver="masVendidos">Ver todos →</button></div>
-      <div class="envoltura-carrusel"><div class="carrusel" id="carMasVendidos"></div></div>
-    </section>
+    <div id="filasPortada"><div class="cargando">Cargando libros…</div></div>
     <section class="explorar">
-      <h2>Explora por género</h2>
-      <div class="chips" id="chipsGenero"><span class="cargando">Cargando…</span></div>
       <button type="button" class="btn activo btn-ver-todos" id="verTodos">Ver todos los libros</button>
     </section>
   </div>
 
   <div id="catalogoCompleto" hidden>
-    <button type="button" class="volver" id="volverPortada">← Volver al inicio de Libros</button>
+    <div class="barra-volver"><button type="button" class="volver" data-volver>← Volver</button></div>
     <p class="contador" id="contador"></p>
     <div class="grid" id="grid"><div class="cargando">Cargando catálogo…</div></div>
     <button type="button" class="btn activo ver-mas" id="verMas" hidden>Ver más libros</button>
+    <div class="barra-volver abajo"><button type="button" class="volver" data-volver>← Volver</button></div>
   </div>
 </div>
 
 <div id="vistaDescuentos" style="display:none;">
+  <div class="barra-volver"><button type="button" class="volver" data-volver>← Volver</button></div>
   <div class="portada-descuentos">
     <h2 id="tituloDescuentos">Descuentos del Mes</h2>
     <p id="textoDescuentos">Cada mes elegimos libros con un descuento especial.</p>
   </div>
   <div class="grid" id="gridDescuentos"><div class="cargando">Cargando descuentos…</div></div>
+  <div class="barra-volver abajo"><button type="button" class="volver" data-volver>← Volver</button></div>
 </div>
 
 <div id="vistaInsumos" style="display:none;">
@@ -902,7 +898,7 @@ const grid = document.getElementById("grid");
 const portada = document.getElementById("portada");
 const catalogoCompleto = document.getElementById("catalogoCompleto");
 const verMas = document.getElementById("verMas");
-const chipsGenero = document.getElementById("chipsGenero");
+const filasPortada = document.getElementById("filasPortada");
 const tabDescuentos = document.getElementById("tabDescuentos");
 const vistaDescuentos = document.getElementById("vistaDescuentos");
 const gridDescuentos = document.getElementById("gridDescuentos");
@@ -1233,6 +1229,7 @@ function agregarAlCarrito(tipo, item){
   if(existente){
     existente.disponible = tope;
     existente.precio = item.precio;
+    existente.descuento = !!item.precioLista;
     if(existente.cantidad < tope) existente.cantidad++;
   } else {
     CARRITO.push({
@@ -1241,7 +1238,8 @@ function agregarAlCarrito(tipo, item){
       precio: item.precio,
       foto: item.foto || "",
       cantidad: 1,
-      disponible: tope
+      disponible: tope,
+      descuento: !!item.precioLista
     });
   }
   guardarCarrito();
@@ -1294,6 +1292,7 @@ function sincronizarCarritoConInventario(tipo, fuente){
     if(actual.disponible < c.cantidad){ c.cantidad = actual.disponible; cambio = true; }
     if(c.disponible !== actual.disponible){ c.disponible = actual.disponible; cambio = true; }
     if(c.precio !== actual.precio){ c.precio = actual.precio; cambio = true; }
+    if(c.descuento !== !!actual.precioLista){ c.descuento = !!actual.precioLista; cambio = true; }
     return true;
   });
   if(cambio){ guardarCarrito(); actualizarBadgeCarrito(); }
@@ -1341,7 +1340,13 @@ function renderCarrito(){
   btnWhatsappCarrito.style.display = "block";
   btnWhatsappCarrito.href = mensajeWhatsappCarrito();
 
-  if(URL_PAGO.indexOf("PENDIENTE") === 0){
+  // Política de Descuentos: los precios con descuento se pagan por
+  // transferencia, no con link de pago.
+  const conDescuento = CARRITO.some(c => c.descuento);
+  if(conDescuento){
+    btnPagarCarrito.style.display = "none";
+    ayudaPago.textContent = "Tu pedido lleva libros con descuento: el pago es por transferencia (los descuentos no aplican con link de pago). Escríbenos por WhatsApp y te pasamos los datos.";
+  } else if(URL_PAGO.indexOf("PENDIENTE") === 0){
     btnPagarCarrito.style.display = "none";
     ayudaPago.textContent = "";
   } else {
@@ -1623,13 +1628,17 @@ function tarjetaEvento(ev){
     ? `<span class="estado proximo">Próximo</span>`
     : `<span class="estado pasado">Pasado</span>`;
   const fechaTexto = ev.fecha ? formatearFechaEvento(ev.fecha) : (ev.fechaPendiente ? "Fecha por confirmar" : "");
+  // Fecha y horario van en líneas separadas.
+  const horarioTexto = !ev.horario ? "" :
+    (normalizarPlano(ev.horario) === "pendiente" ? "Horario por confirmar" : ev.horario);
   return `
     <div class="card">
       ${fotosHTML}
       <div class="cuerpo">
         <div class="badges">${estadoHTML}</div>
         <h3>${ev.nombre}</h3>
-        ${fechaTexto || ev.horario ? `<p class="dato-evento">🗓️ ${fechaTexto}${fechaTexto && ev.horario ? " · " : ""}${ev.horario}</p>` : ""}
+        ${fechaTexto ? `<p class="dato-evento">🗓️ ${fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1)}</p>` : ""}
+        ${horarioTexto ? `<p class="dato-evento">🕒 ${horarioTexto}</p>` : ""}
         ${ev.lugar ? `<p class="dato-evento">📍 ${ev.lugar}</p>` : ""}
         ${ev.dirigidoPor ? `<p class="dato-evento">🎤 Dirigido por ${ev.dirigidoPor}</p>` : ""}
         ${enlaceLibro("📖 Libro del evento", ev.libro)}
@@ -1911,7 +1920,68 @@ function render(){
   pintarTarjetas(grid, visibles);
 }
 
-// ---------- Portada de Libros ----------
+// ---------- Portada de Libros y navegación ----------
+// Cada vez que se entra a una lista (un género, "Ver todos", Nuevos, Más
+// Vendidos o la pestaña de Descuentos) se guarda el punto de partida: qué
+// pestaña, si estaba en la portada o en el catálogo, los filtros y hasta
+// dónde había bajado. "← Volver" (y el botón Atrás del celular) regresa
+// exactamente ahí.
+const PILA_REGRESO = [];
+
+function pestanaActiva(){
+  return PESTANAS.findIndex(({ tab }) => tab.classList.contains("activa"));
+}
+
+function activarPestana(indice){
+  PESTANAS.forEach(({ tab, vista }, i) => {
+    tab.classList.toggle("activa", i === indice);
+    vista.style.display = i === indice ? "" : "none";
+  });
+}
+
+function capturarFiltros(){
+  return {
+    q: buscador.value, genero: filtroGenero.value, autor: filtroAutor.value, tipo: filtroTipo.value,
+    idioma: filtroIdioma.value, orden: orden.value, solo: soloDisponibles.checked
+  };
+}
+
+function ponerFiltros(f){
+  buscador.value = f.q; filtroGenero.value = f.genero; filtroAutor.value = f.autor; filtroTipo.value = f.tipo;
+  filtroIdioma.value = f.idioma; orden.value = f.orden; soloDisponibles.checked = f.solo;
+}
+
+function guardarPunto(){
+  PILA_REGRESO.push({
+    pestana: pestanaActiva(), y: window.scrollY, enCatalogo: !catalogoCompleto.hidden,
+    filtros: capturarFiltros(), coleccion, limite
+  });
+  try{ history.pushState({ lyv: PILA_REGRESO.length }, ""); } catch(e){}
+}
+
+function restaurarPunto(p){
+  activarPestana(p.pestana);
+  ponerFiltros(p.filtros);
+  coleccion = p.coleccion;
+  limite = p.limite;
+  catalogoCompleto.hidden = !p.enCatalogo;
+  portada.hidden = p.enCatalogo;
+  render();
+  // Dos cuadros de espera: primero se dibuja, después se baja a donde estaba.
+  requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, p.y)));
+}
+
+window.addEventListener("popstate", () => {
+  const p = PILA_REGRESO.pop();
+  if(p) restaurarPunto(p);
+});
+
+function volver(){
+  if(PILA_REGRESO.length){ history.back(); return; }
+  // Sin punto guardado (por ejemplo, se entró directo a la pestaña): a la portada de Libros.
+  volverAPortada();
+}
+
 function mostrarCatalogo(){
   portada.hidden = true;
   catalogoCompleto.hidden = false;
@@ -1925,15 +1995,22 @@ function volverAPortada(){
   limite = POR_PAGINA;
   catalogoCompleto.hidden = true;
   portada.hidden = false;
+  activarPestana(PESTANAS.findIndex(({ tab }) => tab === tabLibros));
   render();
   vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // Cualquier búsqueda o filtro lleva al catálogo completo, desde la página 1.
+// Si se venía de la portada, se guarda el punto para poder volver.
 function filtrosCambiaron(){
+  if(catalogoCompleto.hidden) guardarPunto();
   limite = POR_PAGINA;
   mostrarCatalogo();
   render();
+}
+
+function irAlCatalogo(){
+  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function buscarLibroPorClave(clave){
@@ -1956,11 +2033,24 @@ function tarjetaMini(l, i, etiqueta){
     </article>`;
 }
 
-function llenarCarrusel(id, libros, etiqueta){
-  const car = document.getElementById(id);
-  car._lista = libros;
-  car.innerHTML = libros.map((l, i) => tarjetaMini(l, i, typeof etiqueta === "function" ? etiqueta(l, i) : etiqueta)).join("");
-  car.scrollLeft = 0;
+// Carruseles de la portada: se guarda cada lista para los clics delegados.
+const CARRUSELES = {};
+function filaCarrusel(id, titulo, sub, libros, etiqueta, ver, total){
+  CARRUSELES[id] = libros;
+  const cuantos = total && total > libros.length ? `<small>${total}</small>` : (total ? `<small>${total}</small>` : "");
+  return `
+    <section class="fila-vitrina">
+      <div class="fila-cabeza"><h2>${titulo}${cuantos}</h2>
+        <button type="button" class="ver-todo" data-ver="${ver}">Ver todos →</button></div>
+      ${sub ? `<p class="fila-sub">${sub}</p>` : ""}
+      <div class="envoltura-carrusel">
+        <div class="carrusel" data-car="${id}">
+          ${libros.map((l, i) => tarjetaMini(l, i, typeof etiqueta === "function" ? etiqueta(l, i) : etiqueta)).join("")}
+        </div>
+        <button type="button" class="flecha izq" data-dir="-1" aria-label="Anteriores">‹</button>
+        <button type="button" class="flecha der" data-dir="1" aria-label="Siguientes">›</button>
+      </div>
+    </section>`;
 }
 
 function librosDeClaves(claves){
@@ -1972,36 +2062,44 @@ function ultimoDiaDelMes(mes){
   return new Date(a, m, 0).getDate();
 }
 
+const MAXIMO_POR_CARRUSEL = 15;
+
 function renderPortada(){
-  // Géneros: solo los que tienen algo disponible, con cuántos hay.
-  const conteo = {};
-  LIBROS.forEach(l => { if(l.disponible > 0) conteo[l.genero] = (conteo[l.genero] || 0) + 1; });
-  chipsGenero.innerHTML = Object.keys(conteo).sort((a,b)=>a.localeCompare(b,'es'))
-    .map(g => `<button type="button" class="chip" data-genero="${g}">${g}<span>${conteo[g]}</span></button>`).join("");
+  if(!LIBROS.length) return;
   document.getElementById("verTodos").textContent = `Ver todos los libros (${LIBROS.length})`;
+  let html = "";
 
-  const filaD = document.getElementById("filaDescuentos");
-  const filaN = document.getElementById("filaNuevos");
-  const filaM = document.getElementById("filaMasVendidos");
-  if(!VITRINA || !LIBROS.length){ filaD.hidden = filaN.hidden = filaM.hidden = true; return; }
+  if(VITRINA){
+    const desc = librosDeClaves(VITRINA.descuentos.titulos.map(x => x[0])).filter(l => l.disponible > 0);
+    if(desc.length) html += filaCarrusel("descuentos", "Descuentos del Mes",
+      `${VITRINA.descuentos.porcentaje}% menos, solo hasta el ${ultimoDiaDelMes(VITRINA.mes)} de ${VITRINA.nombreMes}.`,
+      desc, l => etiquetaDescuento(l), "descuentos");
 
-  const desc = librosDeClaves(VITRINA.descuentos.titulos.map(x => x[0])).filter(l => l.disponible > 0);
-  filaD.hidden = !desc.length;
-  document.getElementById("subFilaDescuentos").textContent =
-    `${VITRINA.descuentos.porcentaje}% menos, solo hasta el ${ultimoDiaDelMes(VITRINA.mes)} de ${VITRINA.nombreMes}.`;
-  llenarCarrusel("carDescuentos", desc, l => etiquetaDescuento(l));
+    const nuevos = librosDeClaves(VITRINA.nuevos.titulos).filter(l => l.disponible > 0);
+    if(nuevos.length) html += filaCarrusel("nuevos",
+      VITRINA.nuevos.mes === VITRINA.mes ? "Nuevos Ingresos del Mes" : `Nuevos Ingresos de ${capitalizar(VITRINA.nuevos.nombreMes)}`,
+      "", nuevos, l => l.precioLista ? etiquetaDescuento(l) : `<span class="etiqueta-foto nuevo">Nuevo</span>`, "nuevos");
 
-  const nuevos = librosDeClaves(VITRINA.nuevos.titulos).filter(l => l.disponible > 0);
-  filaN.hidden = !nuevos.length;
-  document.getElementById("tituloNuevos").textContent =
-    VITRINA.nuevos.mes === VITRINA.mes ? "Nuevos Ingresos del Mes" : `Nuevos Ingresos de ${capitalizar(VITRINA.nuevos.nombreMes)}`;
-  llenarCarrusel("carNuevos", nuevos, l => l.precioLista ? etiquetaDescuento(l) : `<span class="etiqueta-foto nuevo">Nuevo</span>`);
+    const top = librosDeClaves(VITRINA.masVendidos.titulos.map(x => x[0]));
+    if(top.length) html += filaCarrusel("masVendidos",
+      VITRINA.masVendidos.mes === VITRINA.mes ? "Los Más Vendidos del Mes" : `Los Más Vendidos de ${capitalizar(VITRINA.masVendidos.nombreMes)}`,
+      "", top, (l, i) => l.precioLista ? etiquetaDescuento(l) : `<span class="etiqueta-foto top">#${i + 1}</span>`, "masVendidos");
+  }
 
-  const top = librosDeClaves(VITRINA.masVendidos.titulos.map(x => x[0]));
-  filaM.hidden = !top.length;
-  document.getElementById("tituloMasVendidos").textContent =
-    VITRINA.masVendidos.mes === VITRINA.mes ? "Los Más Vendidos del Mes" : `Los Más Vendidos de ${capitalizar(VITRINA.masVendidos.nombreMes)}`;
-  llenarCarrusel("carMasVendidos", top, (l, i) => l.precioLista ? etiquetaDescuento(l) : `<span class="etiqueta-foto top">#${i + 1}</span>`);
+  // Una sección por género, de la que más libros tiene a la que menos.
+  // Primero los disponibles; el carrusel muestra hasta 15 y "Ver todos" abre el resto.
+  const porGenero = {};
+  LIBROS.forEach(l => { (porGenero[l.genero] = porGenero[l.genero] || []).push(l); });
+  Object.keys(porGenero)
+    .map(g => ({ g, libros: porGenero[g], disp: porGenero[g].filter(l => l.disponible > 0).length }))
+    .filter(x => x.disp > 0)
+    .sort((a, b) => (b.disp - a.disp) || a.g.localeCompare(b.g, "es"))
+    .forEach(({ g, libros }) => {
+      const orden = libros.slice().sort((a, b) => ((b.disponible > 0) - (a.disponible > 0)) || a.titulo.localeCompare(b.titulo, "es"));
+      html += filaCarrusel("g:" + g, g, "", orden.slice(0, MAXIMO_POR_CARRUSEL), l => etiquetaDescuento(l), "genero:" + g, libros.length);
+    });
+
+  filasPortada.innerHTML = html;
 }
 
 function renderDescuentos(){
@@ -2011,7 +2109,7 @@ function renderDescuentos(){
   document.getElementById("textoDescuentos").textContent =
     `${VITRINA.descuentos.porcentaje}% de descuento en estos libros elegidos para ti. ` +
     `Válido hasta el ${ultimoDiaDelMes(VITRINA.mes)} de ${VITRINA.nombreMes} o hasta agotar existencias. ` +
-    `Cada mes cambia la selección.`;
+    `Cada mes cambia la selección. Pago por transferencia.`;
   if(!lista.length){
     gridDescuentos.innerHTML = `<div class="vacio">Los libros en descuento de este mes ya se agotaron. ¡Espera la selección del próximo mes!</div>`;
     return;
@@ -2249,45 +2347,53 @@ Promise.all([
   if(!isNaN(idx) && lista[idx]) abrirDetalle(lista[idx]);
 }));
 
-// Carruseles: tocar un libro abre su ficha; en computadora hay flechas.
-["carDescuentos", "carNuevos", "carMasVendidos"].forEach(id => {
-  const car = document.getElementById(id);
-  car.addEventListener("click", (e) => {
-    const mini = e.target.closest(".mini");
-    if(mini && car._lista) abrirDetalle(car._lista[parseInt(mini.dataset.idx)]);
-  });
-  const envoltura = car.parentElement;
-  [["izq", -1, "‹"], ["der", 1, "›"]].forEach(([lado, dir, simbolo]) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "flecha " + lado; b.textContent = simbolo;
-    b.setAttribute("aria-label", dir < 0 ? "Anteriores" : "Siguientes");
-    b.addEventListener("click", () => car.scrollBy({ left: dir * car.clientWidth * 0.8, behavior: "smooth" }));
-    envoltura.appendChild(b);
-  });
+// Portada: clics delegados (los carruseles se vuelven a dibujar seguido).
+filasPortada.addEventListener("click", (e) => {
+  const flecha = e.target.closest(".flecha");
+  if(flecha){
+    const car = flecha.parentElement.querySelector(".carrusel");
+    car.scrollBy({ left: Number(flecha.dataset.dir) * car.clientWidth * 0.8, behavior: "smooth" });
+    return;
+  }
+  const mini = e.target.closest(".mini");
+  if(mini){
+    const lista = CARRUSELES[mini.closest(".carrusel").dataset.car] || [];
+    const libro = lista[parseInt(mini.dataset.idx)];
+    if(libro) abrirDetalle(libro);
+    return;
+  }
+  const ver = e.target.closest(".ver-todo");
+  if(!ver) return;
+  const cual = ver.dataset.ver;
+  if(cual === "descuentos"){
+    guardarPunto();
+    activarPestana(PESTANAS.findIndex(({ tab }) => tab === tabDescuentos));
+    window.scrollTo(0, 0);
+    return;
+  }
+  guardarPunto();
+  [filtroGenero, filtroAutor, filtroTipo, filtroIdioma, orden].forEach(s => s.selectedIndex = 0);
+  buscador.value = ""; soloDisponibles.checked = false; coleccion = null;
+  if(cual.indexOf("genero:") === 0){
+    filtroGenero.value = cual.slice(7);
+  } else {
+    const titulo = ver.parentElement.querySelector("h2").firstChild.textContent;
+    coleccion = cual === "nuevos"
+      ? { nombre: titulo, claves: VITRINA.nuevos.titulos }
+      : { nombre: titulo, claves: VITRINA.masVendidos.titulos.map(x => x[0]) };
+  }
+  limite = POR_PAGINA;
+  mostrarCatalogo();
+  render();
+  irAlCatalogo();
 });
 
-chipsGenero.addEventListener("click", (e) => {
-  const chip = e.target.closest(".chip");
-  if(!chip) return;
-  filtroGenero.value = chip.dataset.genero;
-  filtrosCambiaron();
-  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
-});
 document.getElementById("verTodos").addEventListener("click", () => {
   filtrosCambiaron();
-  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
+  irAlCatalogo();
 });
-document.getElementById("volverPortada").addEventListener("click", volverAPortada);
+document.querySelectorAll("[data-volver]").forEach(b => b.addEventListener("click", volver));
 verMas.addEventListener("click", () => { limite += POR_PAGINA; render(); });
-document.querySelectorAll(".ver-todo").forEach(b => b.addEventListener("click", () => {
-  const cual = b.dataset.ver;
-  if(cual === "descuentos"){ tabDescuentos.click(); return; }
-  coleccion = cual === "nuevos"
-    ? { nombre: document.getElementById("tituloNuevos").textContent, claves: VITRINA.nuevos.titulos }
-    : { nombre: document.getElementById("tituloMasVendidos").textContent, claves: VITRINA.masVendidos.titulos.map(x => x[0]) };
-  filtrosCambiaron();
-  vistaLibros.scrollIntoView({ behavior: "smooth", block: "start" });
-}));
 
 // ---------- Vitrina del mes (Apps Script) ----------
 // Se guarda la última en el navegador para que la portada aparezca al
