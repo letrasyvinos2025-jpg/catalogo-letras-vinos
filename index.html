@@ -1077,15 +1077,31 @@ function procesar(filas, mapaVentas){
     const esCajaCompleta = cajaValor === "si";
     const esSoloCaja = cajaValor === "solo caja";
 
-    const ventaReal = mapaVentas.get(codigo) || 0;
-    const brecha = Math.max(0, ventaReal - vendidoDeclarado);
-    const disponibleAjustado = Math.max(0, disponibleDeclarado - brecha);
-
     porCodigo.push({
+      codigo, vendidoDeclarado,
       nombre, autor, genero, precio, sinopsis, foto, tipo, idioma,
       grupoCaja, esCajaCompleta, esSoloCaja,
-      disponible: disponibleAjustado
+      disponible: disponibleDeclarado
     });
+  }
+
+  // Un mismo código puede estar en varias filas (una por ubicación: bodega,
+  // cada tienda). "Ventas por Código" cuenta TODAS las ventas del código, así
+  // que la brecha se calcula por código (sumando lo que declaran sus filas) y
+  // se descuenta de sus filas en orden, no de cada fila por separado.
+  const vendidoPorCodigo = new Map();
+  for(const c of porCodigo){
+    vendidoPorCodigo.set(c.codigo, (vendidoPorCodigo.get(c.codigo) || 0) + c.vendidoDeclarado);
+  }
+  const brechaPendiente = new Map();
+  for(const [codigo, vendido] of vendidoPorCodigo){
+    brechaPendiente.set(codigo, Math.max(0, (mapaVentas.get(codigo) || 0) - vendido));
+  }
+  for(const c of porCodigo){
+    const pendiente = brechaPendiente.get(c.codigo) || 0;
+    const descontar = Math.min(pendiente, c.disponible);
+    c.disponible -= descontar;
+    brechaPendiente.set(c.codigo, pendiente - descontar);
   }
 
   // Paso 2: para cada Grupo Caja, calcular cuántas cajas completas se
