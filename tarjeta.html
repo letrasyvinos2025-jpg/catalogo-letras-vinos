@@ -161,7 +161,11 @@
     background:radial-gradient(circle at 35% 30%, #F7E3A6, var(--oro) 60%, #8C6A22);
   }
   .beneficio.logrado .ficha .l{color:#5A4214;}
-  .beneficio.logrado .texto::after{content:" ✓ disponible"; color:var(--oro-claro); font-weight:600; font-size:0.78rem;}
+  .beneficio.logrado .texto::after{content:" 🎁 en tu próximo libro"; color:var(--oro-claro); font-weight:600; font-size:0.78rem;}
+  /* Metas que ya pasó en esta tarjeta: su premio era para la compra siguiente. */
+  .beneficio.pasado{opacity:0.5;}
+  .beneficio.pasado .texto::after{content:" ✓ alcanzado"; font-size:0.74rem;}
+  .regla-premios{font-size:0.72rem; text-align:center; opacity:0.75; margin:0 0 0.6rem; font-style:italic;}
 
   .cargando{text-align:center; padding:1.2rem 0 0.4rem;}
   .sello-latido{
@@ -357,9 +361,9 @@ function ponerArte(plan){
 // Las dos tarjetas. Quien tenía una tarjeta en curso al 1 de octubre de 2026
 // la termina con los beneficios anteriores; el Apps Script dice cuál le toca.
 const PLANES = {
-  anterior: [[3, "10% de descuento en tu próxima compra"], [5, "15% de descuento + marcapáginas exclusivo"],
+  anterior: [[3, "10% de descuento"], [5, "15% de descuento + marcapáginas exclusivo"],
              [8, "20% de descuento + envío gratis"], [10, "25% de descuento + regalo sorpresa"]],
-  nuevo: [[5, "10% de descuento en tu próxima compra"], [10, "20% de descuento + regalo sorpresa"]]
+  nuevo: [[5, "10% de descuento"], [10, "20% de descuento + regalo sorpresa"]]
 };
 const botonCambiar = document.getElementById("botonCambiar");
 
@@ -406,7 +410,7 @@ const cargando = document.getElementById("cargando");
 
 // La última tarjeta consultada se guarda en ESTE celular, para que al volver a
 // abrir la página se vea al instante y se actualice por detrás.
-const CLAVE_GUARDADA = "lyv_tarjeta_v1";
+const CLAVE_GUARDADA = "lyv_tarjeta_v3";
 function leerGuardada(){
   try { return JSON.parse(localStorage.getItem(CLAVE_GUARDADA) || "null"); } catch(e){ return null; }
 }
@@ -443,31 +447,42 @@ async function consultarServidor(celular){
 
 function mostrarTarjeta(datos, animar){
   const plan = PLANES[datos.plan] ? datos.plan : "nuevo";
-  const niveles = PLANES[plan];
+  // Los % de la tarjeta nueva se pueden cambiar desde el bot: si el servidor
+  // los manda, se usan esos.
+  const niveles = Array.isArray(datos.niveles) && datos.niveles.length ? datos.niveles : PLANES[plan];
   saludo.textContent = datos.nombre ? `¡Hola, ${datos.nombre}!` : "¡Hola!";
   // Concordancia automática: "te falta 1" / "te faltan 3"
   const cuantos = (n, meta) => `Te falta${n === 1 ? "" : "n"} ${n} para ${meta}`;
   let detalle = `Llevas <strong>${datos.sellos} de ${TOTAL_SELLOS}</strong> sellos.<br>`;
+  // El premio va en el libro con el que completas la meta.
+  const siguiente = niveles.find(n => n[0] > datos.sellos);
   if(datos.sellos === 0 && datos.tarjetasCompletadas > 0){
     detalle += "¡Completaste una tarjeta! Esta es la siguiente.";
-  } else {
-    const siguiente = niveles.find(n => n[0] > datos.sellos);
-    if(siguiente) detalle += cuantos(siguiente[0] - datos.sellos, "tu " + siguiente[1].replace(" en tu próxima compra", "") + ".");
+  } else if(siguiente && siguiente[0] === datos.sellos + 1){
+    detalle += `🎁 ¡Tu próximo libro lleva <strong>${siguiente[1]}</strong>!`;
+  } else if(siguiente){
+    const n = siguiente[0] - datos.sellos;
+    detalle += `Te falta${n === 1 ? "" : "n"} ${n} libro${n === 1 ? "" : "s"} para tu ${siguiente[1]}.`;
   }
-  if(datos.premioPendiente){
-    detalle += `<br>🎁 En tu próxima compra tienes: <strong>${datos.premioPendiente}</strong>.`;
-  }
+  // Premio que no se pudo aplicar en su última compra (por ejemplo, en una caja).
+  (datos.pendientes || []).forEach(p => {
+    detalle += `<br>🎁 Tienes pendiente para tu próxima compra: <strong>${p}</strong>.`;
+  });
   conteo.innerHTML = detalle;
   pintarSellos(datos.sellos);
   if(!animar) sellos.querySelectorAll(".moneda").forEach(m => m.style.animation = "none");
 
-  // Se marca solo el beneficio más alto alcanzado: es el que se usa, no se suman.
-  const alcanzado = niveles.filter(n => n[0] <= datos.sellos).pop();
-  beneficios.innerHTML = niveles.map(([n, texto]) => `
-    <div class="beneficio${alcanzado && n === alcanzado[0] ? " logrado" : ""}">
+  // Meta que completa con su próximo libro = dorada; metas ya pasadas = "alcanzado".
+  const pendiente = datos.sellos + 1;
+  beneficios.innerHTML = `<p class="regla-premios">El premio se aplica al libro con el que completas cada meta.</p>` +
+    niveles.map(([n, texto]) => {
+      const clase = n === pendiente ? " logrado" : (n <= datos.sellos ? " pasado" : "");
+      return `
+    <div class="beneficio${clase}">
       <span class="ficha"><span class="n">${n}</span><span class="l">SELLOS</span></span>
       <span class="texto">${texto}</span>
-    </div>`).join("");
+    </div>`;
+    }).join("");
   notaPlan.classList.toggle("oculto", plan !== "anterior");
   ponerArte(plan);
   // Los sellos de tinta se estampan cada uno un poco torcido, como a mano.
@@ -516,7 +531,9 @@ async function buscar(celular){
       return;
     }
     const cambio = !yaLaTengo || guardada.datos.sellos !== datos.sellos || guardada.datos.nombre !== datos.nombre
-      || guardada.datos.plan !== datos.plan || guardada.datos.premioPendiente !== datos.premioPendiente;
+      || guardada.datos.plan !== datos.plan || guardada.datos.premioPendiente !== datos.premioPendiente || guardada.datos.premioSellos !== datos.premioSellos
+      || JSON.stringify(guardada.datos.pendientes || []) !== JSON.stringify(datos.pendientes || [])
+      || JSON.stringify(guardada.datos.niveles || []) !== JSON.stringify(datos.niveles || []);
     guardar(celular, datos);
     if(cambio) mostrarTarjeta(datos, true);
   } catch(err){
