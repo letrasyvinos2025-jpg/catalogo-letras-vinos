@@ -460,7 +460,11 @@ function mostrarTarjeta(datos, animar){
     detalle += "¡Completaste una tarjeta! Esta es la siguiente.";
   } else if(siguiente){
     const n = siguiente[0] - datos.sellos;
-    detalle += `Te falta${n === 1 ? "" : "n"} ${n} libro${n === 1 ? "" : "s"} para ganar ${siguiente[1]}.`;
+    const enEse = plan === "anterior" && siguiente[0] !== 3;
+    detalle += enEse
+      ? (n === 1 ? `🎁 ¡Tu próximo libro (el número ${siguiente[0]}) lleva <strong>${siguiente[1]}</strong>!`
+                 : `Te faltan ${n} libros: tu libro número ${siguiente[0]} lleva ${siguiente[1]}.`)
+      : `Te falta${n === 1 ? "" : "n"} ${n} libro${n === 1 ? "" : "s"} para ganar ${siguiente[1]}.`;
   }
   (datos.pendientes || []).forEach(p => {
     detalle += `<br>🎁 En tu próxima compra tienes: <strong>${p}</strong>.`;
@@ -473,7 +477,10 @@ function mostrarTarjeta(datos, animar){
   const textosPendientes = datos.pendientes || [];
   const metaPendiente = niveles.filter(n => n[0] <= datos.sellos && textosPendientes.includes(n[1])).map(n => n[0]).pop();
   const pendiente = metaPendiente || (datos.sellos === 0 && textosPendientes.length ? -1 : 0);
-  beneficios.innerHTML = `<p class="regla-premios">Al llegar a cada meta, el premio se aplica en tu siguiente libro.</p>` +
+  const regla = plan === "anterior"
+    ? "El premio de 3 sellos se aplica en tu siguiente libro; los de 5, 8 y 10, en ese mismo libro."
+    : "Al llegar a cada meta, el premio se aplica en tu siguiente libro.";
+  beneficios.innerHTML = `<p class="regla-premios">${regla}</p>` +
     niveles.map(([n, texto]) => {
       const clase = n === pendiente ? " logrado" : (n <= datos.sellos ? " pasado" : "");
       return `
