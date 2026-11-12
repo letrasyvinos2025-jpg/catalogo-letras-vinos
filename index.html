@@ -679,6 +679,40 @@
     .precio{font-size:1rem;}
     .btn{font-size:0.76rem;padding:0.5rem 0.6rem;}
   }
+
+  /* ================= CATÁLOGO EN PDF =================
+     El botón arma una versión para imprimir con los libros disponibles y abre
+     el diálogo del navegador ("Guardar como PDF" o imprimir). En pantalla no
+     se ve; al imprimir, se ve SOLO esto. */
+  .btn-pdf{width:auto; display:inline-block; padding:0.65rem 1.4rem; margin-top:0.7rem;
+    background:transparent; color:var(--borgona); border:1px solid var(--borgona);}
+  #catalogoImprimible{display:none;}
+  @media print{
+    @page{size:A4; margin:13mm 13mm 15mm;}
+    body{background:#fff !important;}
+    body > *:not(#catalogoImprimible){display:none !important;}
+    #catalogoImprimible{display:block; color:#3A3335; font-family:'Inter',sans-serif;}
+    .pdf-portada{height:250mm; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; break-after:page;}
+    .pdf-portada img{max-width:85mm; max-height:50mm; margin-bottom:6mm;}
+    .pdf-portada h1{font-family:'Fraunces',serif; color:#7A2036; font-size:34pt; margin:0 0 3mm;}
+    .pdf-portada .lema{color:#7A7275; font-size:13pt; margin:0 0 14mm;}
+    .pdf-portada p{margin:1.2mm 0; font-size:11pt;}
+    .pdf-portada .nota{color:#7A7275; margin-top:10mm;}
+    .pdf-genero{font-family:'Fraunces',serif; color:#7A2036; font-size:16pt; margin:6mm 0 3mm; break-after:avoid;}
+    .pdf-grilla{display:grid; grid-template-columns:1fr 1fr; gap:5mm 7mm;}
+    .pdf-libro{display:flex; gap:3.5mm; break-inside:avoid; page-break-inside:avoid;}
+    .pdf-libro img, .pdf-libro .pdf-sinfoto{width:25mm; height:37mm; object-fit:cover; flex:0 0 25mm; border-radius:1.5mm;}
+    .pdf-sinfoto{background:#F2EEE8; color:#7A7275; font-size:7pt; display:flex; align-items:center;
+      justify-content:center; text-align:center;}
+    .pdf-libro h3{font-size:9.5pt; margin:0 0 0.8mm; line-height:1.2;}
+    .pdf-autor{color:#7A7275; font-size:8pt; margin:0;}
+    .pdf-meta{color:#7A7275; font-size:7pt; margin:0.5mm 0 1mm;}
+    .pdf-sinopsis{font-size:7.3pt; line-height:1.3; margin:0 0 1.2mm;}
+    .pdf-precio{color:#7A2036; font-weight:600; font-size:10pt; margin:0;}
+    .pdf-precio s{color:#7A7275; font-weight:400; font-size:7.5pt; margin-left:1.5mm;}
+    .pdf-pie{color:#7A7275; font-size:7.5pt; text-align:center; margin-top:8mm; border-top:1px solid #E7DFE2; padding-top:2mm;}
+  }
 </style>
 </head>
 <body>
@@ -722,6 +756,7 @@
     <div id="filasPortada"><div class="cargando">Cargando libros…</div></div>
     <section class="explorar">
       <button type="button" class="btn activo btn-ver-todos" id="verTodos">Ver todos los libros</button>
+      <br><button type="button" class="btn btn-pdf" id="descargarPDF">📄 Descargar catálogo en PDF</button>
     </section>
   </div>
 
@@ -2615,6 +2650,91 @@ PESTANAS.forEach(({ tab, vista }) => {
       v.style.display = activa ? "" : "none";
     });
   });
+});
+
+// ---------- Catálogo en PDF ----------
+// Arma una versión para imprimir con los libros DISPONIBLES (por género, con
+// foto, sinopsis corta y precio, con el Descuento del Mes si aplica) y abre el
+// diálogo del navegador: ahí se elige "Guardar como PDF" o se imprime.
+function escaparPDF(t){
+  return String(t || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function sinopsisCorta(t, limite = 230){
+  t = String(t || "").replace(/\s+/g, " ").trim();
+  if(t.length <= limite) return t;
+  return t.slice(0, limite).replace(/\s+\S*$/, "").replace(/[,.;:]$/, "") + "…";
+}
+function armarCatalogoImprimible(){
+  const MESES_PDF = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const hoy = new Date();
+  const mes = MESES_PDF[hoy.getMonth()] + " " + hoy.getFullYear();
+  const lista = LIBROS.filter(l => l.disponible > 0 && l.precio)
+    .sort((a, b) => (a.genero || "").localeCompare(b.genero || "", "es") || a.titulo.localeCompare(b.titulo, "es"));
+  let html = `<section class="pdf-portada">
+      <img src="logo_transparente.png" alt="Letras &amp; Vinos" onerror="this.outerHTML='<h1>Letras &amp; Vinos</h1>'">
+      <p class="lema">Lectura en estado líquido</p>
+      <p><b>Catálogo de libros · ${mes}</b></p>
+      <p>${lista.length} títulos disponibles</p>
+      <p style="margin-top:12mm">Pedidos por WhatsApp: +504 9246-1991</p>
+      <p>Instagram: @letras_vinos</p>
+      <p>${escaparPDF(location.href.split("#")[0].split("?")[0])}</p>
+      <p class="nota">Precios en lempiras, sujetos a disponibilidad.</p>
+    </section>`;
+  let genero = null;
+  for(const l of lista){
+    if(l.genero !== genero){
+      if(genero !== null) html += `</div>`;
+      genero = l.genero;
+      html += `<h2 class="pdf-genero">${escaparPDF(genero)}</h2><div class="pdf-grilla">`;
+    }
+    const titulo = l.titulo.replace(/\s*\(\s*pd\s*\)/i, "");
+    const meta = [l.tipo, l.idioma].filter(Boolean).join(" · ");
+    const precio = l.precioLista
+      ? `${formatoLempiras(l.precio)}<s>${formatoLempiras(l.precioLista)}</s> · Descuento del Mes`
+      : formatoLempiras(l.precio);
+    html += `<article class="pdf-libro">
+        ${l.foto ? `<img src="${escaparPDF(l.foto)}" alt="" onerror="this.outerHTML='<div class=\\'pdf-sinfoto\\'>Letras<br>&amp; Vinos</div>'">`
+                 : `<div class="pdf-sinfoto">Letras<br>&amp; Vinos</div>`}
+        <div>
+          <h3>${escaparPDF(titulo)}</h3>
+          ${l.autor ? `<p class="pdf-autor">${escaparPDF(capitalizar(l.autor))}</p>` : ""}
+          ${meta ? `<p class="pdf-meta">${escaparPDF(meta)}</p>` : ""}
+          ${l.sinopsis ? `<p class="pdf-sinopsis">${escaparPDF(sinopsisCorta(l.sinopsis))}</p>` : ""}
+          <p class="pdf-precio">${precio}</p>
+        </div>
+      </article>`;
+  }
+  if(genero !== null) html += `</div>`;
+  html += `<p class="pdf-pie">Letras &amp; Vinos · Catálogo ${mes} · WhatsApp +504 9246-1991</p>`;
+  let cont = document.getElementById("catalogoImprimible");
+  if(!cont){
+    cont = document.createElement("div");
+    cont.id = "catalogoImprimible";
+    document.body.appendChild(cont);
+  }
+  cont.innerHTML = html;
+  return { cont, mes };
+}
+document.getElementById("descargarPDF").addEventListener("click", async () => {
+  const boton = document.getElementById("descargarPDF");
+  if(!LIBROS.length){ alert("El catálogo todavía se está cargando. Intenta en unos segundos."); return; }
+  const textoOriginal = boton.textContent;
+  boton.textContent = "Preparando el PDF…";
+  boton.disabled = true;
+  const { cont, mes } = armarCatalogoImprimible();
+  // Espera a que carguen las fotos (máximo 10 s) para que salgan en el PDF.
+  const imgs = Array.from(cont.querySelectorAll("img"));
+  imgs.forEach(img => { img.loading = "eager"; });
+  await Promise.race([
+    Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.addEventListener("error", r); }))),
+    new Promise(r => setTimeout(r, 10000))
+  ]);
+  const tituloAntes = document.title;
+  document.title = "Catalogo Letras y Vinos - " + mes;   // nombre sugerido del archivo
+  boton.textContent = textoOriginal;
+  boton.disabled = false;
+  window.print();
+  setTimeout(() => { document.title = tituloAntes; }, 1500);
 });
 </script>
 
