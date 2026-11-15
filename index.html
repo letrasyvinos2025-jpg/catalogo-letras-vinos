@@ -1088,6 +1088,8 @@ function procesar(filas, mapaVentas){
   // Paso 1: una entrada por código/fila, con el disponible ya ajustado
   // por el cotejo contra "Ventas por Código".
   const porCodigo = [];
+  // Columna opcional CITAACIEGAS (libros sorpresa): se busca por su título.
+  const iCita = (filas[0] || []).findIndex(h => normalizarPlano(h).replace(/[^a-z]/g, "") === "citaaciegas");
   for(let i = 1; i < filas.length; i++){
     const f = filas[i];
     if(!f || f.length < 6) continue;
@@ -1112,6 +1114,21 @@ function procesar(filas, mapaVentas){
     const esCajaCompleta = cajaValor === "si";
     const esSoloCaja = cajaValor === "solo caja";
 
+    const esCita = iCita >= 0 && ["si", "s", "x"].includes(normalizarPlano(f[iCita]));
+    if(esCita){
+      // Cita a ciegas: no se revela el libro. Solo el género como pista.
+      // Se usa la FOTO del paquete y la SINOPSIS del Sheet (escribir ahí una
+      // pista, no la sinopsis real); nunca el título ni el autor.
+      const pista = (genero || "sorpresa").toLowerCase();
+      porCodigo.push({
+        codigo, vendidoDeclarado, nombre: `CITA A CIEGAS: ${genero || "SORPRESA"} (REF. ${codigo})`,
+        autor: "", genero: "CITA A CIEGAS", precio,
+        sinopsis: sinopsis || `Un libro sorpresa de ${pista}, envuelto y con accesorios. El precio es el del libro; los accesorios se suman aparte. Pregúntanos por WhatsApp.`,
+        foto, tipo, idioma, grupoCaja: "", esCajaCompleta: false, esSoloCaja: false,
+        disponible: disponibleDeclarado
+      });
+      continue;
+    }
     porCodigo.push({
       codigo, vendidoDeclarado,
       nombre, autor, genero, precio, sinopsis, foto, tipo, idioma,
