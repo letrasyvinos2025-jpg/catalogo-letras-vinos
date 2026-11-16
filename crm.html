@@ -144,6 +144,20 @@ table.simple{width:100%;border-collapse:collapse;font-size:14px}
 table.simple td,table.simple th{padding:7px 6px;border-top:1px solid var(--linea);text-align:left;vertical-align:top}
 table.simple th{border-top:0;font-size:12px;color:var(--suave);font-weight:700}
 .cargando{text-align:center;padding:70px 10px;color:var(--suave)}
+.formulario{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:10px}
+.formulario label{display:grid;gap:3px;font-size:12.5px;color:var(--suave);min-width:0}
+.formulario .ancho{grid-column:1/-1}
+.formulario input,.formulario select{padding:8px 10px;border:1px solid var(--linea);border-radius:8px;background:var(--crema);width:100%;min-width:0;font-size:14px;color:var(--tinta)}
+.formulario .par{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.aviso-form{font-size:13px;color:var(--borgona)}
+.seg-linea{border-top:1px solid var(--linea);padding:8px 0;font-size:14px}
+.seg-linea:first-of-type{border-top:0}
+.pendiente{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:1px solid var(--linea)}
+.pendiente .seg-linea{border-top:0}
+.pendiente .botones{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:720px){.pendiente{grid-template-columns:1fr}.pendiente .botones{justify-content:flex-start;padding-bottom:8px}}
+.enlace{background:none;border:0;padding:0;color:var(--borgona);font-weight:700;text-decoration:underline}
+details.tarjeta summary{font-size:15px}
 </style>
 </head>
 <body>
@@ -175,7 +189,9 @@ table.simple th{border-top:0;font-size:12px;color:var(--suave);font-weight:700}
       <button role="tab" data-vista="resumen" aria-selected="true">Resumen</button>
       <button role="tab" data-vista="segmentos" aria-selected="false">Segmentos</button>
       <button role="tab" data-vista="clientas" aria-selected="false">Clientas</button>
+      <button role="tab" data-vista="seguimiento" aria-selected="false">Seguimiento</button>
       <button role="tab" data-vista="calidad" aria-selected="false">Calidad de Datos</button>
+      <button role="tab" data-vista="accesos" aria-selected="false">Accesos</button>
     </nav>
   </header>
   <main id="contenido"><div class="cargando">Leyendo el Sheet…</div></main>
@@ -210,9 +226,9 @@ var MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct
 
 // ---------- Segmentos ----------
 var GRUPOS = [
-  ["Para Escribir Hoy", ["premio", "anterior", "casi", "llego", "cobro"]],
+  ["Para Escribir Hoy", ["premio", "anterior", "casi", "llego", "cumple", "cobro"]],
   ["Para Reactivar", ["nuevas", "una", "dormidas", "inactivas"]],
-  ["Para Cuidar", ["frecuentes", "activas", "solicitud"]],
+  ["Para Cuidar", ["frecuentes", "activas", "solicitud", "sindatos"]],
   ["Otros Grupos", ["evento", "prospecto", "mayorista", "interna"]]
 ];
 var SEG = {
@@ -261,6 +277,11 @@ var SEG = {
   mayorista: { t: "Compras por Volumen", q: "Tienen al menos una compra con descuento Por volumen. No conviene mezclarlas con las campañas al detalle.",
     m: "¡Hola {nombre}! Te saludamos de Letras & Vinos 🍷📚 ¿Cómo va el movimiento de los libros? Cuando quieras armamos tu próximo pedido.",
     d: function (c) { return "<strong>" + c.m.lib + " libros</strong> · " + L(c.m.gas); } },
+  cumple: { t: "Cumpleaños Esta Semana", q: "Cumplen años hoy o en los próximos 7 días, según el cumpleaños anotado en su ficha.",
+    m: "¡Feliz cumpleaños, {nombre}! 🎂 De parte de todas en Letras & Vinos 🍷📚 te deseamos un año lleno de buenas lecturas.",
+    d: function (c) { return "Cumple el <strong>" + esc(c.x.cum) + "</strong>" + (c.x.dc === 0 ? " · ¡es hoy!" : c.x.dc === 1 ? " · mañana" : " · en " + c.x.dc + " días"); } },
+  sindatos: { t: "Datos por Completar", q: "Compraron en los últimos {inactiva} días y les falta el cumpleaños o el permiso para mensajes. Se les puede preguntar en su próxima compra y anotarlo en la ficha o en el bot.",
+    m: "", d: function (c) { var f = []; if (!c.x || !c.x.per) f.push("permiso"); if (!c.x || !c.x.cum) f.push("cumpleaños"); return "Falta: <strong>" + f.join(" y ") + "</strong> · última compra " + hace(c.m.dias); } },
   interna: { t: "Compras de Socias", q: "La mayoría de sus compras son canal Personal o Descuento a Socias. Quedan fuera de los indicadores y de los demás segmentos.",
     m: "", d: function (c) { return c.m.lib + " libros · " + L(c.m.gas); } }
 };
@@ -270,10 +291,10 @@ function mensaje(seg, c) {
   var libro = "";
   if (c.sol.length) { var s = c.sol.filter(function (o) { return seg === "llego" ? o.ll : o.ab; })[0] || c.sol[0]; libro = s.t; }
   var datos = { nombre: primerNombre(c.n), premio: c.t.pen[0] || "", proximo: c.t.prox || "", sellos: c.t.s,
-    genero: c.m.gen[0] ? c.m.gen[0][0] : "tus géneros favoritos", libro: libro, monto: L(c.m.cob) };
+    genero: c.x && c.x.gen ? c.x.gen : c.m.gen[0] ? c.m.gen[0][0] : "tus géneros favoritos", libro: libro, monto: L(c.m.cob) };
   return plantilla.replace(/\{(\w+)\}/g, function (m, k) { return datos[k] !== undefined ? datos[k] : m; });
 }
-function numeroWa(c) { return c.length === 8 ? "504" + c : c.length > 11 ? "504" + c.substring(0, 8) : c; }   // 11 dígitos: ya trae código de país
+function numeroWa(c) { return c.length === 8 ? "504" + c : c.length >= 16 ? "504" + c.substring(0, 8) : c; }   // 10 a 15 dígitos: ya trae código de país
 function enlaceWa(c, texto) { return "https://wa.me/" + numeroWa(c.c) + (texto ? "?text=" + encodeURIComponent(texto) : ""); }
 function deSegmento(seg) { return D.clientas.filter(function (c) { return c.seg.indexOf(seg) !== -1; }); }
 
@@ -297,10 +318,11 @@ function entrar(forzar) {
     .catch(function () { salir("No se pudo conectar. Revisá tu internet e intentá de nuevo."); });
 }
 function recibir(r) {
-  D = r; porCel = {};
+  D = r; porCel = {}; accesos = null; claveCreada = null;
+  if (!D.yo) D.yo = { n: "Laura Munguía", admin: true };
   D.clientas.forEach(function (c) { porCel[c.c] = c; });
   var g = new Date(D.generado);
-  document.getElementById("actualizado").textContent = "Datos del " + fecha(D.hoy) + ", " +
+  document.getElementById("actualizado").textContent = D.yo.n.split(" ")[0] + " · datos del " + fecha(D.hoy) + ", " +
     String(g.getHours()).padStart(2, "0") + ":" + String(g.getMinutes()).padStart(2, "0");
   document.getElementById("bandaDemo").classList.toggle("oculto", !DEMO);
   pintar();
@@ -319,7 +341,7 @@ function pintar() {
     b.setAttribute("aria-selected", b.dataset.vista === estado.vista ? "true" : "false");
   });
   var c = document.getElementById("contenido");
-  c.innerHTML = ({ resumen: vistaResumen, segmentos: vistaSegmentos, clientas: vistaClientas, calidad: vistaCalidad })[estado.vista]();
+  c.innerHTML = ({ resumen: vistaResumen, segmentos: vistaSegmentos, clientas: vistaClientas, calidad: vistaCalidad, seguimiento: vistaSeguimiento, accesos: vistaAccesos })[estado.vista]();
 }
 
 function vistaResumen() {
@@ -374,27 +396,29 @@ function graficoMeses(meses) {
 }
 
 function filaClienta(c, seg) {
-  var hechas = leer("hechas", {}), marca = seg ? hechas[seg + "|" + c.c] : null;
+  var marca = seg ? ultimaCampana(c, seg) : null;
   var detalle = seg ? SEG[seg].d(c) : "Última compra <strong>" + (c.m.ult ? hace(c.m.dias) : "ninguna") + "</strong> · " + c.m.com + " compras · " + L(c.m.gas);
   var h = '<div class="clienta' + (marca ? " hecha" : "") + '"><div class="quien"><b>' + esc(c.n) + '</b><span class="num">' + cel(c.c) +
     (c.m.ven ? " · atiende " + esc(c.m.ven.split(" ")[0]) : "") + '</span></div><div class="dato">' + detalle + '</div><div class="botones">';
   if (seg && SEG[seg].m) {
-    h += '<label><input type="checkbox" data-hecha="' + seg + "|" + c.c + '"' + (marca ? " checked" : "") + '> ' + (marca ? "Escrita el " + marca : "Ya le escribí") + '</label>' +
+    if (noQuiere(c) && SOLO_AVISO.indexOf(seg) === -1) h += '<span class="chip">No quiere mensajes</span>';
+    else h += (marca ? '<span class="chip">Escrita el ' + fechaCorta(marca.f) + ' por ' + esc(marca.so.split(" ")[0]) + '</span>'
+        : '<button class="btn claro chico" type="button" data-escrita="' + seg + "|" + c.c + '">Marcar Escrita</button>') +
       '<a class="btn chico" target="_blank" rel="noopener" href="' + esc(enlaceWa(c, mensaje(seg, c))) + '">WhatsApp</a>';
   }
   return h + '<button class="btn claro chico" type="button" data-ficha="' + c.c + '">Ver Ficha</button></div></div>';
 }
 
 function vistaSegmentos() {
-  var h = '<h2>Segmentos</h2><p class="intro">Cada grupo es una lista de clientas con algo en común y un mensaje sugerido. El botón de WhatsApp abre el chat con el mensaje ya escrito; lo podés ajustar antes de enviarlo.</p><div class="segmentos"><div class="lista-seg">';
+  var h = '<h2>Segmentos</h2><p class="intro">Cada grupo es una lista de clientas con algo en común y un mensaje sugerido. El botón de WhatsApp abre el chat con el mensaje ya escrito; lo podés ajustar antes de enviarlo. "Marcar Escrita" lo anota en el CRM para que las demás socias lo vean.</p><div class="segmentos"><div class="lista-seg">';
   GRUPOS.forEach(function (g) {
     h += '<h4>' + g[0] + '</h4>';
     g[1].forEach(function (k) {
       h += '<button type="button" data-seg="' + k + '" aria-pressed="' + (k === estado.seg) + '"><span>' + SEG[k].t + '</span><span class="num">' + (D.segmentos[k] || 0) + '</span></button>';
     });
   });
-  var s = SEG[estado.seg], lista = deSegmento(estado.seg), hechas = leer("hechas", {});
-  var escritas = lista.filter(function (c) { return hechas[estado.seg + "|" + c.c]; }).length;
+  var s = SEG[estado.seg], lista = deSegmento(estado.seg);
+  var escritas = lista.filter(function (c) { return ultimaCampana(c, estado.seg); }).length;
   h += '</div><div><h3 style="font-size:21px">' + s.t + '</h3><div class="que-hacer">' + esc(conCortes(s.q)) + '</div>';
   if (s.m) {
     h += '<details class="mensaje"><summary>Ver o Cambiar el Mensaje de Este Grupo</summary><textarea id="plantilla" aria-label="Mensaje del grupo">' + esc(leer("msg_" + estado.seg, null) || s.m) +
@@ -449,14 +473,14 @@ function vistaCalidad() {
     cifra(q.filasVentas, "Filas de Venta Leídas", "en Detalle de Ventas") +
     cifra(q.consumidorFinal, "Consumidor Final", "ventas sin datos de la clienta") +
     cifra(q.sinCelular, "Sin Celular", "tienen nombre pero no número") +
-    cifra(q.celularDudoso, "Celular Fuera de Formato", "filas cuyo número no tiene 8 dígitos") +
+    cifra(q.celularDudoso, "Celular por Revisar", "dos números juntos o dígitos de más") +
     cifra(q.sinFecha, "Sin Fecha de Venta", "no entran en recencia") +
     cifra(q.solicitudesSinCelular + q.eventosSinCelular, "Solicitudes y Eventos", "sin un celular válido") + '</div>';
-  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Celulares Fuera de Formato</h3><p class="nota" style="margin:0 0 8px">No tienen 8 dígitos: dos números en la misma celda o un número de otro país. Con dos números, la clienta no puede consultar su tarjeta web; conviene dejar uno solo en el Sheet.</p>';
+  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Celulares por Revisar</h3><p class="nota" style="margin:0 0 8px">Dos números en la misma celda, o un número al que le sobra o le falta un dígito. Los números de otros países (10 a 15 dígitos) se aceptan y no aparecen aquí.</p>';
   if (!(q.dudosos || []).length) h += '<p class="nota">No se encontró ninguno.</p>';
   else {
-    h += '<table class="simple"><tr><th>Clienta</th><th>Como Está en el Sheet</th></tr>';
-    q.dudosos.forEach(function (d) { h += '<tr><td>' + esc(d.n) + '</td><td class="num"><button class="btn claro chico" type="button" data-ficha="' + d.c + '">' + cel(d.c) + '</button></td></tr>'; });
+    h += '<table class="simple"><tr><th>Clienta</th><th>Como Está en el Sheet</th><th>Motivo</th></tr>';
+    q.dudosos.forEach(function (d) { h += '<tr><td>' + esc(d.n) + '</td><td class="num"><button class="btn claro chico" type="button" data-ficha="' + d.c + '">' + cel(d.c) + '</button></td><td>' + (d.por === "doble" ? "Dos números juntos" : "Cantidad de dígitos") + '</td></tr>'; });
     h += '</table>';
   }
   h += '</div><div class="tarjeta" style="margin-bottom:16px"><h3>Mismo Nombre con Varios Celulares</h3><p class="nota" style="margin:0 0 8px">Puede ser la misma clienta con dos números: su tarjeta de sellos estaría partida.</p>';
@@ -510,6 +534,8 @@ function abrirFicha(numero) {
     h += '</section>';
   }
 
+  if (avisoFicha) { h += '<div class="que-hacer">' + esc(avisoFicha) + '</div>'; avisoFicha = ""; }
+  h += seccionDatos(c) + seccionSeguimientos(c);
   var grupos = {};
   c.l.forEach(function (l) { (grupos[l.f] || (grupos[l.f] = [])).push({ t: l.t, p: l.p, x: [l.d && l.d !== "No Aplica" ? l.d : "", l.cj ? "con caja" : "", l.cc ? "cita a ciegas" : "", l.ec && l.ec !== "Pagado" ? l.ec : ""].filter(Boolean).join(" · "), cn: l.cn, vd: l.vd }); });
   c.i.forEach(function (l) { (grupos[l.f] || (grupos[l.f] = [])).push({ t: (l.q > 1 ? l.q + " × " : "") + l.t, p: l.p, x: "Experiencia Literaria", cn: l.cn, vd: l.vd }); });
@@ -582,12 +608,6 @@ document.addEventListener("click", function (e) {
 });
 document.addEventListener("change", function (e) {
   var t = e.target;
-  if (t.dataset.hecha) {
-    var hechas = leer("hechas", {});
-    if (t.checked) { var h = new Date(); hechas[t.dataset.hecha] = String(h.getDate()).padStart(2, "0") + "/" + String(h.getMonth() + 1).padStart(2, "0"); }
-    else delete hechas[t.dataset.hecha];
-    guardar("hechas", hechas); pintar(); return;
-  }
   if (t.id === "plantilla") { guardar("msg_" + estado.seg, t.value); pintar(); return; }
   if (["fSeg", "fGen", "fVen", "orden"].indexOf(t.id) !== -1) {
     estado[t.id] = t.value; estado.limite = 60;
@@ -596,6 +616,209 @@ document.addEventListener("change", function (e) {
 });
 document.addEventListener("input", function (e) {
   if (e.target.id === "buscar") { estado.buscar = e.target.value; estado.limite = 60; document.getElementById("resultado").innerHTML = resultadoClientas(); }
+});
+
+// ====================== Segunda parte: escribir en el CRM ======================
+var CANALES = ["WhatsApp", "Instagram", "Facebook", "Llamada", "Presencial", "Evento", "Otro"];
+var SOLO_AVISO = ["cobro", "llego", "solicitud", "mayorista"];   // no son promoción: se pueden escribir aunque no quiera mensajes
+var ERRORES = { no_autorizado: "La clave ya no es válida. Volvé a entrar.", no_permitido: "Tu acceso no permite hacer eso.",
+  numero_invalido: "El celular no es válido.", cumple_invalido: "Ese cumpleaños no existe.", correo_invalido: "El correo no parece válido.",
+  falta_celular: "Falta el celular de la clienta.", fecha_invalida: "La fecha no es válida.", clave_debil: "La clave debe tener al menos 12 caracteres, sin espacios.",
+  clave_en_uso: "Elegí otra clave.", nombre_invalido: "Escribí el nombre de la socia.", no_a_ti_misma: "No podés quitar tu propio acceso.",
+  no_encontrado: "No se encontró ese registro. Actualizá el panel.", sin_cambios: "No hay nada que guardar." };
+var accesos = null, avisoFicha = "", avisoVista = "", claveCreada = null;
+
+function enviar(accion, datos) {
+  if (DEMO) return Promise.resolve(simular(accion, datos));
+  var cuerpo = { accion: accion, clave: clave };
+  Object.keys(datos || {}).forEach(function (k) { cuerpo[k] = datos[k]; });
+  return fetch(URL_CRM, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(cuerpo) })
+    .then(function (r) { return r.json(); })
+    .then(function (r) { if (!r.ok) throw new Error(ERRORES[r.error] || "No se pudo guardar (" + r.error + ")."); return r; },
+          function () { throw new Error("No se pudo conectar. Revisá tu internet e intentá de nuevo."); });
+}
+function simular(accion, d) {   // vista previa: nada se guarda
+  var hoy = D.hoy;
+  if (accion === "crm_seguimiento") return { ok: true, s: { id: "demo" + Math.random(), f: hoy, h: "10:00", so: D.yo.n, tp: d.tipo || "Seguimiento", cn: d.canal || "", c: (d.celular || "").replace(/\D/g, ""), n: d.nombre || "", res: d.resultado || "", nota: d.nota || "", prox: d.proxima || "", fprox: d.fechaProxima ? d.fechaProxima.split("/").reverse().join("-") : "", gr: d.grupo || "", or: "Panel" } };
+  if (accion === "crm_clienta_guardar") return { ok: true, x: { cum: d.cumple || "", cor: d.correo || "", gen: d.genero || "", per: d.permiso || "", fper: d.permiso ? fecha(hoy) : "", nota: d.nota || "" } };
+  if (accion === "crm_accesos") return { ok: true, archivo: "", accesos: [{ n: "Laura Munguía", admin: true, desde: "" }, { n: "Brenda Erazo", admin: false, desde: "16/11/2026" }] };
+  if (accion === "crm_acceso_crear") return { ok: true, clave: "ClaveDeEjemplo2026xx", accesos: [{ n: "Laura Munguía", admin: true, desde: "" }, { n: d.nombre, admin: !!d.admin, desde: fecha(hoy) }] };
+  return { ok: true, accesos: [{ n: "Laura Munguía", admin: true, desde: "" }] };
+}
+function fechaCorta(iso) { return iso ? iso.substring(8, 10) + "/" + iso.substring(5, 7) : ""; }
+function ultimaCampana(c, seg) {
+  var limite = new Date(D.hoy); limite.setDate(limite.getDate() - 30);
+  var corte = limite.toISOString().substring(0, 10);
+  return (c.sg || []).filter(function (s) { return s.tp === "Campaña" && s.gr === seg && s.f >= corte; })[0] || null;
+}
+function noQuiere(c) { return c.x && c.x.per === "No"; }
+function esPendiente(s) { return s.res === "Quedó de confirmar" || !!s.fprox; }
+function opcionesDe(lista, actual, vacio) {
+  return (vacio !== undefined ? '<option value="">' + vacio + '</option>' : '') + lista.map(function (v) { return '<option' + (v === actual ? " selected" : "") + '>' + esc(v) + '</option>'; }).join("");
+}
+
+// ---------- Ficha: datos y seguimientos ----------
+function seccionDatos(c) {
+  var x = c.x || {}, p = (x.cum || "").split("/"), dias = [], generos = D.resumen.generos.map(function (g) { return g[0]; });
+  if (x.gen && generos.indexOf(x.gen) === -1) generos.unshift(x.gen);
+  for (var i = 1; i <= 31; i++) dias.push(String(i).padStart(2, "0"));
+  var meses = MESES.map(function (m, i) { return '<option value="' + String(i + 1).padStart(2, "0") + '"' + (p[1] === String(i + 1).padStart(2, "0") ? " selected" : "") + '>' + m + '</option>'; }).join("");
+  return '<section><h3>Sus Datos</h3><form data-form="datos" data-cel="' + c.c + '" class="formulario">' +
+    '<label>Cumpleaños<span class="par"><select name="dia"><option value="">día</option>' + opcionesDe(dias, p[0]) + '</select><select name="mes"><option value="">mes</option>' + meses + '</select></span></label>' +
+    '<label>Permiso para Mensajes<select name="permiso"><option value="">Sin preguntar</option>' + opcionesDe(["Sí", "No"], x.per) + '</select></label>' +
+    '<label>Género Favorito<select name="genero">' + opcionesDe(generos, x.gen, "Sin dato") + '</select></label>' +
+    '<label>Correo<input name="correo" type="email" value="' + esc(x.cor || "") + '" placeholder="opcional"></label>' +
+    '<label class="ancho">Nota<input name="nota" maxlength="300" value="' + esc((x.nota || "").replace(/^'/, "")) + '" placeholder="algo útil para atenderla mejor"></label>' +
+    '<div class="ancho"><button class="btn chico" type="submit">Guardar Datos</button> <span class="aviso-form">' + (x.fper ? "Permiso registrado el " + esc(x.fper) + "." : "") + '</span></div></form></section>';
+}
+function lineaSeguimiento(s, conQuien) {
+  return '<div class="seg-linea"><div><b>' + fechaCorta(s.f) + '</b> · ' + esc(s.tp) + (s.cn ? " por " + esc(s.cn) : "") + ' · ' + esc(s.so.split(" ")[0]) +
+    (s.res ? ' · <span class="chip' + (s.res === "Compró" ? " fuerte" : "") + '">' + esc(s.res) + '</span>' : '') + '</div>' +
+    (conQuien ? '<div>' + (s.c && porCel[s.c] ? '<button class="enlace" type="button" data-ficha="' + s.c + '">' + esc(porCel[s.c].n) + '</button>' : esc(s.n || "Sin nombre")) + (s.c ? ' <span class="num">' + cel(s.c) + '</span>' : '') + '</div>' : '') +
+    (s.nota ? '<div class="nota" style="margin:2px 0 0">' + esc(s.nota.replace(/^'/, "")) + '</div>' : '') +
+    (s.prox || s.fprox ? '<div class="nota" style="margin:2px 0 0">Próxima acción' + (s.fprox ? " el " + fecha(s.fprox) : "") + (s.prox ? ": " + esc(s.prox) : "") + '</div>' : '') + '</div>';
+}
+function formularioSeguimiento(c) {
+  return '<form data-form="seguimiento" data-cel="' + (c ? c.c : "") + '" class="formulario">' +
+    (c ? '' : '<label>Nombre<input name="nombre" maxlength="80" placeholder="como se presentó"></label><label>Celular<input name="celular" inputmode="tel" placeholder="opcional"></label>') +
+    '<label>Tipo<select name="tipo">' + opcionesDe(c ? ["Seguimiento", "Consulta"] : ["Consulta"], "") + '</select></label>' +
+    '<label>Canal<select name="canal">' + opcionesDe(CANALES, "WhatsApp") + '</select></label>' +
+    '<label>Resultado<select name="resultado">' + opcionesDe(D.opciones ? D.opciones.resultados : [], "", "Sin resultado aún") + '</select></label>' +
+    '<label>Fecha de Próxima Acción<input name="fprox" type="date" min="' + D.hoy + '"></label>' +
+    '<label class="ancho">Nota<input name="nota" maxlength="400" placeholder="qué pidió, qué se le ofreció"></label>' +
+    '<label class="ancho">Próxima Acción<input name="proxima" maxlength="120" placeholder="opcional: qué hay que hacer después"></label>' +
+    '<div class="ancho"><button class="btn chico" type="submit">Anotar</button> <span class="aviso-form"></span></div></form>';
+}
+function seccionSeguimientos(c) {
+  var h = '<section><h3>Seguimientos</h3>';
+  if (!(c.sg || []).length) h += '<p class="nota" style="margin-top:0">Todavía no hay nada anotado para esta clienta.</p>';
+  (c.sg || []).forEach(function (s) { h += lineaSeguimiento(s, false); });
+  return h + '<details class="mensaje" style="margin:10px 0 0"><summary>Anotar un Seguimiento</summary>' + formularioSeguimiento(c) + '</details></section>';
+}
+
+// ---------- Vista Seguimiento ----------
+function vistaSeguimiento() {
+  var sg = D.seguimiento || { semanas: [], pendientes: [], total: 0, permisos: { si: 0, no: 0, sin: 0 } };
+  var h = '<h2>Seguimiento</h2><p class="intro">Consultas que llegan, seguimientos a clientas y mensajes de campaña que anotan las socias desde el bot o desde este panel. La tasa de cierre es consultas que terminaron en compra entre el total de consultas.</p>';
+  if (avisoVista) { h += '<div class="que-hacer">' + esc(avisoVista) + '</div>'; avisoVista = ""; }
+  h += '<details class="mensaje tarjeta" style="margin-bottom:16px"><summary>Registrar una Consulta</summary>' + formularioSeguimiento(null) + '</details>';
+
+  var socias = {};
+  sg.semanas.forEach(function (s) { Object.keys(s.socias).forEach(function (n) { socias[n] = 1; }); });
+  var nombres = Object.keys(socias).sort();
+  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Contactos por Semana</h3><p class="nota" style="margin:0 0 8px">Meta del Manual: 10 contactos por socia cada semana. Cada semana va de lunes a domingo.</p>';
+  if (!nombres.length) h += '<p class="nota">Aún no hay registros en las últimas cinco semanas.</p>';
+  else {
+    h += '<div style="overflow-x:auto"><table class="simple"><tr><th>Socia</th>' + sg.semanas.map(function (s, i) { return '<th class="num">' + (i === sg.semanas.length - 1 ? "Esta Semana" : "Sem. " + fechaCorta(s.ini)) + '</th>'; }).join("") + '<th class="num">Consultas</th><th class="num">Cierres</th><th class="num">Tasa de Cierre</th></tr>';
+    nombres.forEach(function (n) {
+      var cq = 0, ci = 0;
+      h += '<tr><td>' + esc(n) + '</td>' + sg.semanas.map(function (s) { var k = s.socias[n] || { con: 0, cq: 0, ci: 0 }; cq += k.cq; ci += k.ci; return '<td class="num">' + (k.con >= 10 ? '<b>' + k.con + '</b>' : k.con) + '</td>'; }).join("") +
+        '<td class="num">' + cq + '</td><td class="num">' + ci + '</td><td class="num">' + (cq ? Math.round(ci / cq * 100) + "%" : "—") + '</td></tr>';
+    });
+    h += '</table></div>';
+  }
+  h += '</div><div class="tarjeta" style="margin-bottom:16px"><h3>Pendientes</h3><p class="nota" style="margin:0 0 8px">Consultas que quedaron de confirmar y seguimientos con una próxima acción. Al cerrarlos cuentan en la tasa de cierre.</p>';
+  if (!sg.pendientes.length) h += '<p class="nota">No hay pendientes.</p>';
+  sg.pendientes.forEach(function (s) {
+    var vencido = s.fprox && s.fprox <= D.hoy;
+    h += '<div class="pendiente">' + lineaSeguimiento(s, true) + '<div class="botones">' + (vencido ? '<span class="chip fuerte">Toca hoy</span>' : '') +
+      ["Compró", "No compró", "Sin respuesta"].map(function (r) { return '<button class="btn claro chico" type="button" data-cerrar="' + esc(s.id) + '" data-res="' + r + '">' + r + '</button>'; }).join("") + '</div></div>';
+  });
+  var p = sg.permisos || { si: 0, no: 0, sin: 0 };
+  h += '</div><div class="cifras">' + cifra(p.si, "Con Permiso", "aceptaron recibir mensajes") + cifra(p.no, "No Quieren Mensajes", "quedan fuera de las campañas") +
+    cifra(p.sin, "Sin Preguntar", "todavía no se les ha consultado") + cifra(sg.total, "Registros", "consultas, seguimientos y campañas") + '</div>';
+  return h;
+}
+
+// ---------- Vista Accesos ----------
+function vistaAccesos() {
+  var h = '<h2>Accesos</h2><p class="intro">Cada socia entra con su propia clave. Así se puede quitar un acceso sin afectar a las demás y queda registrado quién anotó cada cosa.</p>';
+  if (avisoVista) { h += '<div class="que-hacer">' + esc(avisoVista) + '</div>'; avisoVista = ""; }
+  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Cambiar Mi Clave</h3><p class="nota" style="margin:0 0 8px">Entraste como <b>' + esc(D.yo ? D.yo.n : "") + '</b>. La clave nueva debe tener al menos 12 caracteres, sin espacios. La anterior deja de servir de inmediato.</p>' +
+    '<form data-form="clave" class="formulario"><label>Clave Nueva<input name="nueva" type="password" minlength="12" maxlength="80" autocomplete="new-password" required></label>' +
+    '<label>Repetir Clave<input name="repetir" type="password" minlength="12" maxlength="80" autocomplete="new-password" required></label>' +
+    '<div class="ancho"><button class="btn chico" type="submit">Cambiar Clave</button> <span class="aviso-form"></span></div></form></div>';
+  if (!D.yo || !D.yo.admin) return h;
+  if (claveCreada) {
+    var enlace = location.origin + location.pathname + "#k=" + claveCreada.clave;
+    h += '<div class="tarjeta" style="margin-bottom:16px;border-color:var(--oro)"><h3>Acceso Creado para ' + esc(claveCreada.nombre) + '</h3><p class="nota" style="margin:0 0 8px">Esta clave se muestra una sola vez. Mandásela solo a ella, por un chat privado.</p>' +
+      '<p class="num" style="overflow-wrap:anywhere"><b>Clave:</b> ' + esc(claveCreada.clave) + '<br><b>Enlace directo:</b> ' + esc(enlace) + '</p>' +
+      '<button class="btn claro chico" type="button" data-copiar="' + esc(enlace) + '">Copiar Enlace</button> <button class="btn claro chico" type="button" id="ocultarClave">Ya la Envié</button></div>';
+  }
+  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Quién Tiene Acceso</h3>';
+  if (!accesos) { h += '<p class="nota">Cargando…</p>'; cargarAccesos(); }
+  else {
+    h += '<table class="simple"><tr><th>Socia</th><th>Tipo</th><th>Desde</th><th></th></tr>';
+    accesos.lista.forEach(function (a) {
+      h += '<tr><td>' + esc(a.n) + '</td><td>' + (a.admin ? "Administradora" : "Socia") + '</td><td class="num">' + esc(a.desde || "inicio") + '</td><td>' +
+        (a.n === D.yo.n ? '' : '<button class="btn claro chico" type="button" data-quitar="' + esc(a.n) + '">Quitar</button>') + '</td></tr>';
+    });
+    h += '</table>' + (accesos.archivo ? '<p class="nota">Los datos nuevos se guardan en el archivo <a href="' + esc(accesos.archivo) + '" target="_blank" rel="noopener">CRM L&amp;V</a>.</p>' : '');
+  }
+  h += '</div><div class="tarjeta"><h3>Crear un Acceso</h3><p class="nota" style="margin:0 0 8px">Si la socia ya tenía uno, el anterior se reemplaza.</p>' +
+    '<form data-form="acceso" class="formulario"><label>Socia<input name="nombre" list="listaSocias" maxlength="60" required><datalist id="listaSocias"><option>Laura Munguía</option><option>Brenda Erazo</option><option>María Antonia Andino</option><option>Mariel Zelaya</option></datalist></label>' +
+    '<label>Tipo<select name="admin"><option value="">Socia</option><option value="1">Administradora</option></select></label>' +
+    '<div class="ancho"><button class="btn chico" type="submit">Crear Acceso</button> <span class="aviso-form"></span></div></form></div>';
+  return h;
+}
+function cargarAccesos() {
+  enviar("crm_accesos", {}).then(function (r) { accesos = { lista: r.accesos, archivo: r.archivo || "" }; if (estado.vista === "accesos") pintar(); },
+    function (e) { accesos = { lista: [], archivo: "" }; avisoVista = e.message; if (estado.vista === "accesos") pintar(); });
+}
+
+// ---------- Guardar ----------
+function anotarLocal(s) {
+  if (s.c && porCel[s.c]) { (porCel[s.c].sg || (porCel[s.c].sg = [])).unshift(s); }
+  if (!D.seguimiento) return;
+  D.seguimiento.total++;
+  if (esPendiente(s)) D.seguimiento.pendientes.push(s);
+  var sem = D.seguimiento.semanas[D.seguimiento.semanas.length - 1];
+  if (sem) { var k = sem.socias[s.so] || (sem.socias[s.so] = { con: 0, cq: 0, ci: 0 }); k.con++; if (s.tp === "Consulta") { k.cq++; if (s.res === "Compró") k.ci++; } }
+}
+document.addEventListener("submit", function (e) {
+  var f = e.target; if (!f.dataset || !f.dataset.form) return;
+  e.preventDefault();
+  var v = function (n) { return f.elements[n] ? f.elements[n].value.trim() : ""; };
+  var aviso = f.querySelector(".aviso-form"), boton = f.querySelector("button[type=submit]");
+  var fallo = function (err) { boton.disabled = false; aviso.textContent = err.message; };
+  boton.disabled = true; aviso.textContent = "Guardando…";
+  if (f.dataset.form === "datos") {
+    var c = porCel[f.dataset.cel];
+    if ((v("dia") && !v("mes")) || (!v("dia") && v("mes"))) { fallo(new Error("El cumpleaños lleva día y mes.")); return; }
+    enviar("crm_clienta_guardar", { celular: c.c, nombre: c.n, cumple: v("dia") ? v("dia") + "/" + v("mes") : "", permiso: v("permiso"), genero: v("genero"), correo: v("correo"), nota: v("nota") })
+      .then(function (r) { r.x.dc = c.x ? c.x.dc : null; c.x = r.x; avisoFicha = "Datos guardados."; abrirFicha(c.c); }, fallo);
+  } else if (f.dataset.form === "seguimiento") {
+    var cl = f.dataset.cel ? porCel[f.dataset.cel] : null, fp = v("fprox");
+    enviar("crm_seguimiento", { tipo: v("tipo"), canal: v("canal"), resultado: v("resultado"), nota: v("nota"), proxima: v("proxima"),
+      fechaProxima: fp ? fp.split("-").reverse().join("/") : "", celular: cl ? cl.c : v("celular"), nombre: cl ? cl.n : v("nombre") })
+      .then(function (r) { anotarLocal(r.s); if (cl) { avisoFicha = "Seguimiento anotado."; abrirFicha(cl.c); } else { avisoVista = "Consulta registrada."; pintar(); } }, fallo);
+  } else if (f.dataset.form === "clave") {
+    if (v("nueva") !== v("repetir")) { fallo(new Error("Las dos claves no coinciden.")); return; }
+    enviar("crm_clave_cambiar", { nueva: v("nueva") }).then(function () {
+      clave = v("nueva"); if (leer("clave", "")) guardar("clave", clave);
+      avisoVista = "Clave cambiada. La anterior ya no sirve."; pintar(); }, fallo);
+  } else if (f.dataset.form === "acceso") {
+    enviar("crm_acceso_crear", { nombre: v("nombre"), admin: v("admin") ? 1 : 0 }).then(function (r) {
+      accesos = { lista: r.accesos, archivo: accesos ? accesos.archivo : "" }; claveCreada = { nombre: v("nombre"), clave: r.clave }; pintar(); }, fallo);
+  }
+});
+document.addEventListener("click", function (e) {
+  var t = e.target;
+  if (t.dataset.escrita) {
+    var p = t.dataset.escrita.split("|"), c = porCel[p[1]]; t.disabled = true; t.textContent = "Guardando…";
+    enviar("crm_seguimiento", { tipo: "Campaña", canal: "WhatsApp", celular: c.c, nombre: c.n, grupo: p[0], nota: "Mensaje del grupo " + SEG[p[0]].t })
+      .then(function (r) { anotarLocal(r.s); pintar(); }, function (err) { t.disabled = false; t.textContent = err.message; });
+  } else if (t.dataset.cerrar) {
+    t.disabled = true;
+    enviar("crm_seguimiento_cerrar", { id: t.dataset.cerrar, resultado: t.dataset.res }).then(function () {
+      D.seguimiento.pendientes = D.seguimiento.pendientes.filter(function (s) { if (s.id !== t.dataset.cerrar) return true; s.res = t.dataset.res; s.fprox = ""; return false; });
+      avisoVista = "Pendiente cerrado como «" + t.dataset.res + "»."; pintar(); }, function (err) { avisoVista = err.message; pintar(); });
+  } else if (t.dataset.quitar) {
+    if (t.dataset.seguro !== "1") { t.dataset.seguro = "1"; t.textContent = "¿Quitar? Tocá de Nuevo"; return; }
+    enviar("crm_acceso_quitar", { nombre: t.dataset.quitar }).then(function (r) { accesos.lista = r.accesos; avisoVista = "Acceso quitado."; pintar(); }, function (err) { avisoVista = err.message; pintar(); });
+  } else if (t.dataset.copiar) {
+    if (navigator.clipboard) navigator.clipboard.writeText(t.dataset.copiar).then(function () { t.textContent = "Enlace Copiado"; }, function () {});
+  } else if (t.id === "ocultarClave") { claveCreada = null; pintar(); }
 });
 
 // ---------- Arranque ----------
