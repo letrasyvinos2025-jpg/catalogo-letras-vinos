@@ -1506,12 +1506,12 @@ function procesarInsumos(filas){
 }
 
 function renderInsumos(){
-  const q = buscadorInsumos.value.trim().toLowerCase();
+  const q = buscadorInsumos.value.trim();
   const soloDisp = soloDisponiblesInsumos.checked;
   const ord = ordenInsumos.value;
 
   let lista = INSUMOS.filter(it=>{
-    if(q && !it.nombre.toLowerCase().includes(q)) return false;
+    if(q && !puntajeBusqueda(q, it.nombre)) return false;
     if(soloDisp && it.disponible <= 0) return false;
     return true;
   });
@@ -1948,8 +1948,84 @@ function pintarTarjetas(contenedor, lista){
   });
 }
 
+// ---------- Búsqueda inteligente ----------
+// Encuentra el libro aunque lo escriban sin tildes, con errores de dedo
+// ("harri poter", "rastreadora", "mecanica corazon"), en otro orden, solo
+// con parte de una palabra o por autor. Devuelve un puntaje (0 = no coincide)
+// para ordenar primero lo más parecido.
+const PALABRAS_VACIAS_BUSQUEDA = new Set(["de","del","la","las","el","los","lo","y","e","un","una","unos","unas",
+  "en","a","al","por","para","con","the","of","and"]);
+
+function palabrasBusqueda(t){
+  return normalizarPlano(t).replace(/[^a-z0-9 ]+/g, " ").split(/\s+/)
+    .filter(w => w && !PALABRAS_VACIAS_BUSQUEDA.has(w));
+}
+
+// Distancia de edición (cuántas letras cambian), con tope para cortar rápido.
+function distanciaBusqueda(a, b, tope){
+  if(Math.abs(a.length - b.length) > tope) return tope + 1;
+  let antes = null;
+  let previa = Array.from({length: b.length + 1}, (_, k) => k);
+  for(let i = 1; i <= a.length; i++){
+    const fila = [i];
+    let minimo = i;
+    for(let k = 1; k <= b.length; k++){
+      const costo = a[i - 1] === b[k - 1] ? 0 : 1;
+      fila[k] = Math.min(previa[k] + 1, fila[k - 1] + 1, previa[k - 1] + costo);
+      // dos letras cambiadas de lugar ("mecancia") cuentan como un solo error
+      if(antes && i > 1 && k > 1 && a[i - 1] === b[k - 2] && a[i - 2] === b[k - 1]){
+        fila[k] = Math.min(fila[k], antes[k - 2] + 1);
+      }
+      if(fila[k] < minimo) minimo = fila[k];
+    }
+    if(minimo > tope) return tope + 1;
+    antes = previa;
+    previa = fila;
+  }
+  return previa[b.length];
+}
+
+function palabraParecida(q, w){
+  if(w === q) return 1;
+  if(q.length >= 3 && w.startsWith(q)) return 0.95;            // escribiendo: "rastrea"
+  if(q.length >= 4 && w.includes(q)) return 0.85;
+  if(q.length < 4) return 0;
+  const tope = q.length <= 5 ? 1 : 2;                           // 1 error en palabras cortas, 2 en largas
+  const d = distanciaBusqueda(q, w, tope);
+  if(d <= tope) return 1 - d / Math.max(q.length, w.length);
+  if(w.length > q.length && distanciaBusqueda(q, w.slice(0, q.length), 1) <= 1) return 0.7; // inicio con error
+  return 0;
+}
+
+function puntajeBusqueda(consulta, texto){
+  const qPlano = normalizarPlano(consulta).replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  if(!qPlano) return 1;
+  const tPlano = normalizarPlano(texto).replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ");
+  if(qPlano.length >= 3 && tPlano.includes(qPlano)) return 2;
+  const qPalabras = palabrasBusqueda(consulta);
+  if(!qPalabras.length) return tPlano.includes(qPlano) ? 2 : 0;
+  const tPalabras = palabrasBusqueda(texto);
+  let suma = 0, encontradas = 0;
+  for(const q of qPalabras){
+    let mejor = 0;
+    for(const w of tPalabras){
+      const p = palabraParecida(q, w);
+      if(p > mejor){ mejor = p; if(p === 1) break; }
+    }
+    if(mejor > 0){ encontradas++; suma += mejor; }
+  }
+  // Con 1 o 2 palabras tienen que aparecer todas; con más, se perdona una de cada tres.
+  const necesaria = qPalabras.length <= 2 ? 1 : 0.66;
+  return encontradas / qPalabras.length >= necesaria ? suma / qPalabras.length : 0;
+}
+
+function textoBusquedaLibro(l){
+  return `${l.titulo} ${l.autor || ""} ${l.genero || ""}`;
+}
+
 function render(){
-  const q = buscador.value.trim().toLowerCase();
+  const q = buscador.value.trim();
+  const puntajes = new Map();
   const au = filtroAutor.value;
   const g = filtroGenero.value;
   const t = filtroTipo.value;
@@ -1959,7 +2035,11 @@ function render(){
 
   let lista = LIBROS.filter(l=>{
     if(coleccion && !coleccion.claves.includes(claveVitrina(l.titulo))) return false;
-    if(q && !l.titulo.toLowerCase().includes(q) && !(l.autor || "").toLowerCase().includes(q)) return false;
+    if(q){
+      const p = puntajeBusqueda(q, textoBusquedaLibro(l));
+      if(!p) return false;
+      puntajes.set(l, p);
+    }
     if(g !== "Todos los géneros" && l.genero !== g) return false;
     if(au && !(l.autores || []).some(a => claveAutor(a) === au)) return false;
     if(t !== "Todos" && l.tipo !== t) return false;
@@ -1971,6 +2051,9 @@ function render(){
   if(coleccion && ord === "alfa"){
     // Dentro de una colección se respeta su orden (el más vendido primero).
     lista.sort((a,b)=>coleccion.claves.indexOf(claveVitrina(a.titulo)) - coleccion.claves.indexOf(claveVitrina(b.titulo)));
+  } else if(ord === "alfa" && q){
+    // Con búsqueda: primero lo más parecido a lo que escribieron.
+    lista.sort((a,b)=>(puntajes.get(b) - puntajes.get(a)) || a.titulo.localeCompare(b.titulo,'es'));
   } else if(ord === "alfa") lista.sort((a,b)=>a.titulo.localeCompare(b.titulo,'es'));
   if(ord === "precioAsc") lista.sort((a,b)=>a.precio-b.precio);
   if(ord === "precioDesc") lista.sort((a,b)=>b.precio-a.precio);
@@ -1982,7 +2065,9 @@ function render(){
   verMas.hidden = visibles.length >= lista.length;
 
   if(lista.length === 0){
-    grid.innerHTML = `<div class="vacio">No encontramos libros con esos filtros. Prueba con otra búsqueda o género.</div>`;
+    grid.innerHTML = q
+      ? `<div class="vacio">No encontramos «${q.replace(/[<>&"]/g, "")}». Prueba con una sola palabra del título o el apellido del autor, o escríbenos por WhatsApp y te ayudamos a buscarlo.</div>`
+      : `<div class="vacio">No encontramos libros con esos filtros. Prueba con otra búsqueda o género.</div>`;
     return;
   }
   pintarTarjetas(grid, visibles);
