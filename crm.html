@@ -158,6 +158,11 @@ table.simple th{border-top:0;font-size:12px;color:var(--suave);font-weight:700}
 @media (max-width:720px){.pendiente{grid-template-columns:1fr}.pendiente .botones{justify-content:flex-start;padding-bottom:8px}}
 .enlace{background:none;border:0;padding:0;color:var(--borgona);font-weight:700;text-decoration:underline}
 details.tarjeta summary{font-size:15px}
+.subnav{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 16px}
+.subnav button{border:1px solid var(--linea);background:var(--blanco);border-radius:20px;padding:7px 14px;font-weight:700;color:var(--suave)}
+.subnav button[aria-pressed=true]{border-color:var(--borgona);color:var(--borgona)}
+.mapa{height:380px;border-radius:10px;border:1px solid var(--linea);margin-bottom:12px;z-index:0}
+table.simple td.num,table.simple th.num{text-align:right;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -190,6 +195,8 @@ details.tarjeta summary{font-size:15px}
       <button role="tab" data-vista="segmentos" aria-selected="false">Segmentos</button>
       <button role="tab" data-vista="clientas" aria-selected="false">Clientas</button>
       <button role="tab" data-vista="seguimiento" aria-selected="false">Seguimiento</button>
+      <button role="tab" data-vista="tiendas" aria-selected="false">Tiendas</button>
+      <button role="tab" data-vista="estrategia" aria-selected="false">Estrategia</button>
       <button role="tab" data-vista="calidad" aria-selected="false">Calidad de Datos</button>
       <button role="tab" data-vista="accesos" aria-selected="false">Accesos</button>
     </nav>
@@ -287,7 +294,8 @@ var SEG = {
 };
 function conCortes(t) { return t.replace(/\{(\w+)\}/g, function (m, k) { return D.cortes[k] !== undefined ? D.cortes[k] : m; }); }
 function mensaje(seg, c) {
-  var plantilla = leer("msg_" + seg, null) || SEG[seg].m;
+  var activa = typeof campanaActiva === "function" ? campanaActiva(seg) : null;
+  var plantilla = (activa && activa.msg) || leer("msg_" + seg, null) || SEG[seg].m;
   var libro = "";
   if (c.sol.length) { var s = c.sol.filter(function (o) { return seg === "llego" ? o.ll : o.ab; })[0] || c.sol[0]; libro = s.t; }
   var datos = { nombre: primerNombre(c.n), premio: c.t.pen[0] || "", proximo: c.t.prox || "", sellos: c.t.s,
@@ -319,6 +327,7 @@ function entrar(forzar) {
 }
 function recibir(r) {
   D = r; porCel = {}; accesos = null; claveCreada = null;
+  if (!D.registros) D.registros = { tiendas: [], campanas: [], metas: [], calendario: [] };
   if (!D.yo) D.yo = { n: "Laura Munguía", admin: true };
   D.clientas.forEach(function (c) { porCel[c.c] = c; });
   var g = new Date(D.generado);
@@ -341,7 +350,7 @@ function pintar() {
     b.setAttribute("aria-selected", b.dataset.vista === estado.vista ? "true" : "false");
   });
   var c = document.getElementById("contenido");
-  c.innerHTML = ({ resumen: vistaResumen, segmentos: vistaSegmentos, clientas: vistaClientas, calidad: vistaCalidad, seguimiento: vistaSeguimiento, accesos: vistaAccesos })[estado.vista]();
+  c.innerHTML = ({ resumen: vistaResumen, segmentos: vistaSegmentos, clientas: vistaClientas, calidad: vistaCalidad, seguimiento: vistaSeguimiento, accesos: vistaAccesos, tiendas: vistaTiendas, estrategia: vistaEstrategia })[estado.vista]();
 }
 
 function vistaResumen() {
@@ -419,7 +428,8 @@ function vistaSegmentos() {
   });
   var s = SEG[estado.seg], lista = deSegmento(estado.seg);
   var escritas = lista.filter(function (c) { return ultimaCampana(c, estado.seg); }).length;
-  h += '</div><div><h3 style="font-size:21px">' + s.t + '</h3><div class="que-hacer">' + esc(conCortes(s.q)) + '</div>';
+  var enCurso = campanaActiva(estado.seg);
+  h += '</div><div><h3 style="font-size:21px">' + s.t + '</h3><div class="que-hacer">' + esc(conCortes(s.q)) + (enCurso ? '<br><b>Campaña activa: ' + esc(enCurso.nom) + '</b> (hasta el ' + fecha(enCurso.fin) + '). Lo que marqués aquí cuenta para ella.' : '') + '</div>';
   if (s.m) {
     h += '<details class="mensaje"><summary>Ver o Cambiar el Mensaje de Este Grupo</summary><textarea id="plantilla" aria-label="Mensaje del grupo">' + esc(leer("msg_" + estado.seg, null) || s.m) +
       '</textarea><p>Lo que va entre llaves se reemplaza solo: {nombre}, {premio}, {proximo}, {sellos}, {genero}, {libro}, {monto}. El cambio se guarda en este dispositivo. ' +
@@ -535,7 +545,7 @@ function abrirFicha(numero) {
   }
 
   if (avisoFicha) { h += '<div class="que-hacer">' + esc(avisoFicha) + '</div>'; avisoFicha = ""; }
-  h += seccionDatos(c) + seccionSeguimientos(c);
+  h += seccionRecomendaciones(c) + seccionDatos(c) + seccionSeguimientos(c);
   var grupos = {};
   c.l.forEach(function (l) { (grupos[l.f] || (grupos[l.f] = [])).push({ t: l.t, p: l.p, x: [l.d && l.d !== "No Aplica" ? l.d : "", l.cj ? "con caja" : "", l.cc ? "cita a ciegas" : "", l.ec && l.ec !== "Pagado" ? l.ec : ""].filter(Boolean).join(" · "), cn: l.cn, vd: l.vd }); });
   c.i.forEach(function (l) { (grupos[l.f] || (grupos[l.f] = [])).push({ t: (l.q > 1 ? l.q + " × " : "") + l.t, p: l.p, x: "Experiencia Literaria", cn: l.cn, vd: l.vd }); });
@@ -625,7 +635,9 @@ var ERRORES = { no_autorizado: "La clave ya no es válida. Volvé a entrar.", no
   numero_invalido: "El celular no es válido.", cumple_invalido: "Ese cumpleaños no existe.", correo_invalido: "El correo no parece válido.",
   falta_celular: "Falta el celular de la clienta.", fecha_invalida: "La fecha no es válida.", clave_debil: "La clave debe tener al menos 12 caracteres, sin espacios.",
   clave_en_uso: "Elegí otra clave.", nombre_invalido: "Escribí el nombre de la socia.", no_a_ti_misma: "No podés quitar tu propio acceso.",
-  no_encontrado: "No se encontró ese registro. Actualizá el panel.", sin_cambios: "No hay nada que guardar." };
+  no_encontrado: "No se encontró ese registro. Actualizá el panel.", sin_cambios: "No hay nada que guardar.",
+  opcion_invalida: "Elegí una de las opciones de la lista.", coordenadas_invalidas: "No pude leer la ubicación. Pegá el enlace de Google Maps o escribí latitud, longitud.",
+  fechas_al_reves: "La fecha de fin es anterior a la de inicio.", mes_invalido: "El mes no es válido.", falta_nom: "Falta el nombre.", falta_tit: "Falta el título." };
 var accesos = null, avisoFicha = "", avisoVista = "", claveCreada = null;
 
 function enviar(accion, datos) {
@@ -639,8 +651,9 @@ function enviar(accion, datos) {
 }
 function simular(accion, d) {   // vista previa: nada se guarda
   var hoy = D.hoy;
-  if (accion === "crm_seguimiento") return { ok: true, s: { id: "demo" + Math.random(), f: hoy, h: "10:00", so: D.yo.n, tp: d.tipo || "Seguimiento", cn: d.canal || "", c: (d.celular || "").replace(/\D/g, ""), n: d.nombre || "", res: d.resultado || "", nota: d.nota || "", prox: d.proxima || "", fprox: d.fechaProxima ? d.fechaProxima.split("/").reverse().join("-") : "", gr: d.grupo || "", or: "Panel" } };
+  if (accion === "crm_seguimiento") return { ok: true, s: { id: "demo" + Math.random(), f: hoy, h: "10:00", so: D.yo.n, tp: d.tipo || "Seguimiento", cn: d.canal || "", c: (d.celular || "").replace(/\D/g, ""), n: d.nombre || "", res: d.resultado || "", nota: d.nota || "", prox: d.proxima || "", fprox: d.fechaProxima ? d.fechaProxima.split("/").reverse().join("-") : "", gr: d.grupo || "", or: "Panel", ca: d.campana || "", ti: d.tienda || "" } };
   if (accion === "crm_clienta_guardar") return { ok: true, x: { cum: d.cumple || "", cor: d.correo || "", gen: d.genero || "", per: d.permiso || "", fper: d.permiso ? fecha(hoy) : "", nota: d.nota || "" } };
+  if (accion === "crm_registro_guardar") { var reg = { id: d.id || "demo" + Math.round(Math.random() * 1e6) }; D.esquema[d.tabla].forEach(function (c) { var v = d.campos[c.k] || ""; reg[c.k] = c.t === "fecha" && v ? v.split("/").reverse().join("-") : c.t === "numero" && v !== "" ? Number(v) : c.t === "celular" ? v.replace(/\D/g, "") : v; }); return { ok: true, r: reg }; }
   if (accion === "crm_accesos") return { ok: true, archivo: "", accesos: [{ n: "Laura Munguía", admin: true, desde: "" }, { n: "Brenda Erazo", admin: false, desde: "16/11/2026" }] };
   if (accion === "crm_acceso_crear") return { ok: true, clave: "ClaveDeEjemplo2026xx", accesos: [{ n: "Laura Munguía", admin: true, desde: "" }, { n: d.nombre, admin: !!d.admin, desde: fecha(hoy) }] };
   return { ok: true, accesos: [{ n: "Laura Munguía", admin: true, desde: "" }] };
@@ -806,7 +819,7 @@ document.addEventListener("click", function (e) {
   var t = e.target;
   if (t.dataset.escrita) {
     var p = t.dataset.escrita.split("|"), c = porCel[p[1]]; t.disabled = true; t.textContent = "Guardando…";
-    enviar("crm_seguimiento", { tipo: "Campaña", canal: "WhatsApp", celular: c.c, nombre: c.n, grupo: p[0], nota: "Mensaje del grupo " + SEG[p[0]].t })
+    enviar("crm_seguimiento", { tipo: "Campaña", canal: "WhatsApp", celular: c.c, nombre: c.n, grupo: p[0], campana: (campanaActiva(p[0]) || {}).id || "", nota: "Mensaje del grupo " + SEG[p[0]].t })
       .then(function (r) { anotarLocal(r.s); pintar(); }, function (err) { t.disabled = false; t.textContent = err.message; });
   } else if (t.dataset.cerrar) {
     t.disabled = true;
@@ -819,6 +832,307 @@ document.addEventListener("click", function (e) {
   } else if (t.dataset.copiar) {
     if (navigator.clipboard) navigator.clipboard.writeText(t.dataset.copiar).then(function () { t.textContent = "Enlace Copiado"; }, function () {});
   } else if (t.id === "ocultarClave") { claveCreada = null; pintar(); }
+});
+
+// ====================== Tercera parte: tiendas y estrategia ======================
+var NOMBRE_TABLA = { tiendas: "Tienda", campanas: "Campaña", metas: "Meta", calendario: "Fecha" };
+var editando = null, mapaListo = null;
+estado.sub = "tablero"; estado.mes = ""; estado.tienda = ""; estado.libro = "";
+
+function registros(tabla) { return (D.registros && D.registros[tabla]) || []; }
+function unRegistro(tabla, id) { return registros(tabla).filter(function (r) { return r.id === id; })[0] || null; }
+function titulo(col) { return col.toLowerCase().replace(/(^|\s)(\S)/g, function (m, a, b) { return a + b.toUpperCase(); }).replace(/ (De|Del|En|O|Y) /g, function (m) { return m.toLowerCase(); }); }
+function mesLargo(clave) { var p = clave.split("-"); return ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][Number(p[1]) - 1] + " " + p[0]; }
+function campanaActiva(seg) {
+  return registros("campanas").filter(function (c) { return c.est === "Activa" && c.gru === seg && c.ini <= D.hoy && (!c.fin || c.fin >= D.hoy); })[0] || null;
+}
+
+function formRegistro(tabla, r) {
+  r = r || {};
+  var h = '<form data-form="registro" data-tabla="' + tabla + '" data-id="' + esc(r.id || "") + '" class="formulario">';
+  D.esquema[tabla].forEach(function (c) {
+    var v = r[c.k] === undefined || r[c.k] === null ? "" : r[c.k], campo, ancho = c.t === "texto" && (c.max || 0) >= 200 || c.t === "coordenadas";
+    if (tabla === "campanas" && c.k === "gru") campo = '<select name="gru"><option value="">Sin grupo</option>' + Object.keys(SEG).filter(function (k) { return SEG[k].m; }).map(function (k) { return '<option value="' + k + '"' + (k === v ? " selected" : "") + '>' + SEG[k].t + '</option>'; }).join("") + '</select>';
+    else if (c.t === "opcion") campo = '<select name="' + c.k + '"' + (c.req ? " required" : "") + '>' + opcionesDe(c.op, v, c.req ? undefined : "—") + '</select>';
+    else if (c.t === "fecha") campo = '<input name="' + c.k + '" type="date" value="' + esc(v) + '"' + (c.req ? " required" : "") + '>';
+    else if (c.t === "mes") campo = '<input name="' + c.k + '" type="month" value="' + esc(v || D.hoy.substring(0, 7)) + '" required>';
+    else if (c.t === "numero") campo = '<input name="' + c.k + '" type="number" step="any" min="' + c.min + '" max="' + c.max + '" value="' + esc(v) + '"' + (c.req ? " required" : "") + '>';
+    else campo = '<input name="' + c.k + '" ' + (c.t === "celular" ? 'inputmode="tel" ' : '') + 'maxlength="' + (c.t === "coordenadas" ? 400 : c.max || 200) + '" value="' + esc(c.t === "celular" && v ? cel(String(v)) : v) + '"' + (c.req ? " required" : "") + (c.e ? ' placeholder="' + esc(c.e) + '"' : '') + '>';
+    h += '<label' + (ancho ? ' class="ancho"' : '') + '>' + titulo(c.col) + campo + '</label>';
+  });
+  return h + '<div class="ancho"><button class="btn chico" type="submit">Guardar</button> <button class="btn claro chico" type="button" data-cancelar="1">Cancelar</button>' +
+    (r.id ? ' <button class="btn claro chico" type="button" data-borrar="' + tabla + "|" + esc(r.id) + '">Borrar</button>' : '') + ' <span class="aviso-form"></span></div></form>';
+}
+function zonaEdicion(tabla, textoBoton) {
+  if (editando && editando.tabla === tabla) return '<div class="tarjeta" style="margin-bottom:16px;border-color:var(--oro)"><h3>' + (editando.id ? "Editar " : "Agregar ") + NOMBRE_TABLA[tabla] + '</h3>' + formRegistro(tabla, editando.id ? unRegistro(tabla, editando.id) : editando.inicial) + '</div>';
+  return '<p><button class="btn chico" type="button" data-nuevo="' + tabla + '">' + textoBoton + '</button></p>';
+}
+
+// ---------- Tiendas ----------
+function barritas(valores) {
+  var max = Math.max.apply(null, valores.concat([1]));
+  return '<svg viewBox="0 0 ' + valores.length * 6 + ' 20" style="width:84px;height:20px" aria-hidden="true">' + valores.map(function (v, i) { var a = Math.max(v ? 1.5 : 0, v / max * 20); return '<rect x="' + i * 6 + '" y="' + (20 - a) + '" width="4.4" height="' + a + '" fill="#C4687A"/>'; }).join("") + '</svg>';
+}
+function vistaTiendas() {
+  var N = D.negocio, h = '<h2>Tiendas</h2><p class="intro">Cómo rinde cada punto de venta, en qué etapa está cada tienda aliada o candidata y dónde están las clientas. Las ventas salen de UBICACIÓN DE VENTA y el inventario de la columna UBICACIÓN.</p>';
+  if (avisoVista) { h += '<div class="que-hacer">' + esc(avisoVista) + '</div>'; avisoVista = ""; }
+  if (estado.tienda) return h + fichaTienda(estado.tienda);
+  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Rendimiento por Punto de Venta</h3><p class="nota" style="margin:0 0 8px">Rotación = libros vendidos entre libros asignados a esa ubicación. Las barras son las ventas de los últimos 13 meses.</p><div style="overflow-x:auto"><table class="simple"><tr><th>Punto de Venta</th><th>Etapa</th><th class="num">Ventas</th><th class="num">Libros</th><th class="num">Rotación</th><th class="num">En Existencia</th><th>Última Venta</th><th class="num">Comisión</th><th>Tendencia</th></tr>';
+  N.tiendas.forEach(function (t) {
+    var f = t.id ? unRegistro("tiendas", t.id) : null;
+    h += '<tr><td><button class="enlace" type="button" data-tienda="' + esc(t.n) + '">' + esc(t.n) + '</button></td><td>' + (f ? esc(f.eta) : t.n === "Letras y Vinos" ? "Propia" : '<span style="color:var(--suave)">Sin ficha</span>') + '</td><td class="num">' + L(t.ventas) + '</td><td class="num">' + t.libros + '</td><td class="num">' + (t.rotacion === null ? "—" : t.rotacion + "%") +
+      '</td><td class="num">' + t.disponibles + ' · ' + L(t.valor) + '</td><td>' + (t.ultima ? hace(t.dias) : "sin ventas") + '</td><td class="num">' + (t.comision ? t.comision + "% · " + L(t.comisionL) : "—") + '</td><td>' + barritas(t.meses) + '</td></tr>';
+  });
+  h += '</table></div></div>';
+
+  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Tiendas Aliadas y Candidatas</h3><p class="nota" style="margin:0 0 10px">Cada tienda avanza por etapas, desde prospecto hasta activa. Tocá una para ver su ficha y anotar visitas.</p>' + zonaEdicion("tiendas", "Agregar Tienda");
+  var etapas = (D.esquema.tiendas.filter(function (c) { return c.k === "eta"; })[0] || { op: [] }).op, hay = false;
+  etapas.forEach(function (e) {
+    var lista = registros("tiendas").filter(function (r) { return r.eta === e; });
+    if (!lista.length) return; hay = true;
+    h += '<div class="seg-linea"><b>' + esc(e) + '</b> <span class="chip">' + lista.length + '</span><div>' + lista.map(function (r) { return '<button class="btn claro chico" style="margin:4px 6px 0 0" type="button" data-tienda="' + esc(r.nom) + '">' + esc(r.nom) + (r.ciu ? " · " + esc(r.ciu) : "") + '</button>'; }).join("") + '</div></div>';
+  });
+  if (!hay) h += '<p class="nota">Todavía no hay fichas de tiendas. Empezá por las que ya venden (Crafts, Bloom Concept Store) y sumá las candidatas.</p>';
+  h += '</div>';
+
+  h += '<div class="tarjeta"><h3>Mapa por Zonas</h3><p class="nota" style="margin:0 0 8px">Clientas y ventas por ciudad, según la CIUDAD de cada venta. La posición de cada ciudad es aproximada; las tiendas aparecen donde indique su ficha.</p><div id="mapa" class="mapa oculto"></div><div style="overflow-x:auto"><table class="simple"><tr><th>Ciudad</th><th class="num">Clientas</th><th class="num">Ventas</th><th class="num">Libros</th><th>Tiendas</th></tr>';
+  N.zonas.forEach(function (z) { h += '<tr><td>' + esc(z.n) + '</td><td class="num">' + z.clientas + '</td><td class="num">' + L(z.ventas) + '</td><td class="num">' + z.libros + '</td><td>' + (z.tiendas.length ? esc(z.tiendas.join(", ")) : '<span style="color:var(--suave)">ninguna</span>') + '</td></tr>'; });
+  h += '</table></div></div>';
+  setTimeout(pintarMapa, 0);
+  return h;
+}
+function fichaTienda(nombre) {
+  var t = D.negocio.tiendas.filter(function (x) { return x.n === nombre; })[0] || null;
+  var f = registros("tiendas").filter(function (r) { return plano(r.nom) === plano(nombre); })[0] || null;
+  var h = '<p><button class="btn claro chico" type="button" data-tienda="">← Todas las Tiendas</button></p><div class="tarjeta" style="margin-bottom:16px"><h3 style="font-size:22px">' + esc(nombre) + '</h3>' +
+    (f ? '<div class="sub" style="color:var(--suave)">' + esc([f.eta, f.tip, f.ciu, f.zon].filter(Boolean).join(" · ")) + '</div>' : '');
+  if (t) {
+    h += '<div class="rejilla" style="margin-top:12px">' + par("Ventas", L(t.ventas)) + par("Libros Vendidos", t.libros) + par("Precio Promedio", L(t.ticket)) +
+      par("Títulos Asignados", t.titulos) + par("Rotación", t.rotacion === null ? "—" : t.rotacion + "%") + par("En Existencia", t.disponibles + " libros") +
+      par("Valor en Existencia", L(t.valor)) + par("Última Venta", t.ultima ? fecha(t.ultima) : "—") + par("Comisión", t.comision ? t.comision + "% · " + L(t.comisionL) : "—") + '</div>' +
+      '<p class="nota">' + t.conClienta + ' ventas con datos de la clienta y ' + t.sinClienta + ' sin datos.' + (t.generos.length ? ' Lo que más vende: ' + esc(t.generos.map(function (g) { return g[0] + " (" + g[1] + ")"; }).join(", ")) + '.' : '') + '</p>';
+  } else h += '<p class="nota">Aún no tiene ventas ni inventario asignado con este nombre.</p>';
+  h += '</div><div class="tarjeta" style="margin-bottom:16px"><h3>Datos de la Tienda</h3>' + formRegistro("tiendas", f || { nom: nombre, eta: t ? "Activa" : "Prospecto" }) + '</div>';
+  var visitas = f ? ((D.seguimiento && D.seguimiento.tiendas) || []).filter(function (s) { return s.ti === f.id; }) : [];
+  h += '<div class="tarjeta"><h3>Visitas y Seguimiento</h3>';
+  if (!f) h += '<p class="nota">Guardá primero los datos de la tienda para poder anotar visitas.</p>';
+  else {
+    if (!visitas.length) h += '<p class="nota" style="margin-top:0">Todavía no hay visitas anotadas.</p>';
+    visitas.forEach(function (s) { h += lineaSeguimiento(s, false); });
+    h += '<form data-form="visita" data-tienda="' + esc(f.id) + '" class="formulario"><label>Canal<select name="canal">' + opcionesDe(CANALES, "Presencial") + '</select></label>' +
+      '<label>Fecha de Próxima Acción<input name="fprox" type="date" min="' + D.hoy + '"></label><label class="ancho">Nota<input name="nota" maxlength="400" required placeholder="qué se acordó, cómo está la exhibición, qué pidieron"></label>' +
+      '<label class="ancho">Próxima Acción<input name="proxima" maxlength="120" placeholder="opcional"></label><div class="ancho"><button class="btn chico" type="submit">Anotar Visita</button> <span class="aviso-form"></span></div></form>';
+  }
+  return h + '</div>';
+}
+function pintarMapa() {
+  var caja = document.getElementById("mapa");
+  if (!caja || DEMO) return;
+  var dibujar = function () {
+    caja.classList.remove("oculto");
+    var mapa = L_.map(caja, { scrollWheelZoom: false }).setView([14.75, -87.3], 7);
+    L_.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "&copy; OpenStreetMap" }).addTo(mapa);
+    D.negocio.zonas.forEach(function (z) {
+      if (z.lat === null || !z.clientas) return;
+      L_.circleMarker([z.lat, z.lng], { radius: 6 + Math.sqrt(z.clientas) * 2.2, color: "#6B1A2A", weight: 1, fillColor: "#C4687A", fillOpacity: .55 })
+        .addTo(mapa).bindPopup("<b>" + esc(z.n) + "</b><br>" + z.clientas + " clientas · " + L(z.ventas));
+    });
+    registros("tiendas").forEach(function (r) {
+      if (!r.geo) return; var p = r.geo.split(",");
+      L_.circleMarker([Number(p[0]), Number(p[1])], { radius: 7, color: "#3D0A14", weight: 2, fillColor: "#C9A96E", fillOpacity: 1 }).addTo(mapa).bindPopup("<b>" + esc(r.nom) + "</b><br>" + esc(r.eta));
+    });
+  };
+  if (window.L_) { dibujar(); return; }
+  if (mapaListo === false) return;
+  var css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"; document.head.appendChild(css);
+  var js = document.createElement("script"); js.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+  // Leaflet se llama "L", igual que la función de lempiras de este panel: noConflict() devuelve la suya y deja la nuestra.
+  js.onload = function () { window.L_ = window.L.noConflict(); if (document.getElementById("mapa")) pintarMapa(); };
+  js.onerror = function () { mapaListo = false; };
+  document.head.appendChild(js);
+}
+
+// ---------- Estrategia ----------
+function realDe(m, amb, nom, ind) {
+  var grupo = amb === "Socia" ? m.socia : amb === "Tienda" ? m.tienda : amb === "Canal" ? m.canal : null, item = null;
+  if (grupo) Object.keys(grupo).forEach(function (k) { if (plano(k) === plano(nom)) item = grupo[k]; });
+  if (ind === "Ventas (L.)") return amb === "General" ? m.ventas : item ? item.v : 0;
+  if (ind === "Libros") return amb === "General" ? m.libros : item ? item.l : 0;
+  if (ind === "Clientas nuevas") return amb === "General" ? m.nuevas : null;
+  if (ind === "Contactos") {
+    var total = 0, uno = 0;
+    Object.keys(m.contactos).forEach(function (k) { total += m.contactos[k]; if (plano(k) === plano(nom)) uno = m.contactos[k]; });
+    return amb === "General" ? total : amb === "Socia" ? uno : null;
+  }
+  return null;
+}
+function metaDe(mes, amb, nom, ind) {
+  return registros("metas").filter(function (r) { return r.mes === mes && r.amb === amb && r.ind === ind && (amb === "General" || plano(r.nom) === plano(nom)); })[0] || null;
+}
+function avance(real, meta) { return meta && meta.meta ? ' <span class="chip' + (real >= meta.meta ? " fuerte" : "") + '">' + Math.round(real / meta.meta * 100) + '% de la meta</span>' : ''; }
+function vistaEstrategia() {
+  var subs = [["tablero", "Tablero y Metas"], ["campanas", "Campañas"], ["calendario", "Calendario"], ["recomendar", "Recomendaciones"]];
+  var h = '<h2>Estrategia Comercial</h2><div class="subnav">' + subs.map(function (s) { return '<button type="button" data-sub="' + s[0] + '" aria-pressed="' + (estado.sub === s[0]) + '">' + s[1] + '</button>'; }).join("") + '</div>';
+  if (avisoVista) { h += '<div class="que-hacer">' + esc(avisoVista) + '</div>'; avisoVista = ""; }
+  return h + ({ tablero: subTablero, campanas: subCampanas, calendario: subCalendario, recomendar: subRecomendar })[estado.sub]();
+}
+function subTablero() {
+  var N = D.negocio, mes = estado.mes || D.hoy.substring(0, 7), m = N.meses.filter(function (x) { return x.mes === mes; })[0] || N.meses[N.meses.length - 1];
+  var contactos = realDe(m, "General", "", "Contactos");
+  var h = '<p class="intro">Lo vendido cada mes contra las metas. Aquí cuentan todas las ventas, también las de "Consumidor final"; no cuentan Regalías ni Pérdidas, ni los envíos.</p>' +
+    '<div class="filtros" style="grid-template-columns:minmax(180px,260px)"><select id="mesTablero" aria-label="Mes">' + N.meses.slice().reverse().map(function (x) { return '<option value="' + x.mes + '"' + (x.mes === m.mes ? " selected" : "") + '>' + mesLargo(x.mes) + (x.mes === D.hoy.substring(0, 7) ? " (en curso)" : "") + '</option>'; }).join("") + '</select></div><div class="cifras">' +
+    cifra(L(m.ventas), "Ventas", "meta: " + ((metaDe(m.mes, "General", "", "Ventas (L.)") || {}).meta ? L(metaDe(m.mes, "General", "", "Ventas (L.)").meta) + avance(m.ventas, metaDe(m.mes, "General", "", "Ventas (L.)")) : "sin definir")) +
+    cifra(m.libros, "Libros Vendidos", (metaDe(m.mes, "General", "", "Libros") ? "meta: " + metaDe(m.mes, "General", "", "Libros").meta + avance(m.libros, metaDe(m.mes, "General", "", "Libros")) : m.compras + " compras")) +
+    cifra(L(m.ticket), "Ticket por Compra", "sin envío") +
+    cifra(m.margen === null ? "—" : m.margen + "%", "Margen Bruto de Libros", "meta del Manual: 30% · costo conocido en " + m.cobertura + "% de lo vendido") +
+    cifra(m.nuevas, "Clientas Nuevas", metaDe(m.mes, "General", "", "Clientas nuevas") ? "meta: " + metaDe(m.mes, "General", "", "Clientas nuevas").meta + avance(m.nuevas, metaDe(m.mes, "General", "", "Clientas nuevas")) : "primera compra en el mes") +
+    cifra(contactos, "Contactos Anotados", metaDe(m.mes, "General", "", "Contactos") ? "meta: " + metaDe(m.mes, "General", "", "Contactos").meta + avance(contactos, metaDe(m.mes, "General", "", "Contactos")) : "consultas, seguimientos y campañas") + '</div>';
+  var max = Math.max.apply(null, N.meses.map(function (x) { return x.ventas; }).concat([1])), W = 900, base = 150, ancho = (W - 8) / N.meses.length;
+  h += '<div class="tarjeta" style="margin-bottom:16px"><h3>Ventas por Mes</h3><svg viewBox="0 0 ' + W + ' 185" role="img" aria-label="Ventas de los últimos 13 meses" style="width:100%;height:auto">' + N.meses.map(function (x, i) {
+    var a = x.ventas / max * 125, p = x.mes.split("-"), cx = 4 + i * ancho + ancho / 2;
+    return '<g><title>' + mesLargo(x.mes) + ': ' + L(x.ventas) + '</title><rect x="' + (4 + i * ancho + ancho * .17) + '" y="' + (base - a) + '" width="' + ancho * .66 + '" height="' + a + '" fill="' + (x.mes === m.mes ? "#6B1A2A" : "#C4687A") + '"/><text x="' + cx + '" y="' + (base - a - 5) + '" text-anchor="middle">' + (x.ventas ? Math.round(x.ventas / 1000) + "k" : "") + '</text><text x="' + cx + '" y="' + (base + 14) + '" text-anchor="middle">' + MESES[Number(p[1]) - 1] + '</text>' + (p[1] === "01" || i === 0 ? '<text x="' + cx + '" y="' + (base + 28) + '" text-anchor="middle">' + p[0] + '</text>' : '') + '</g>'; }).join("") + '</svg><p class="nota">En miles de lempiras. El mes elegido va en color oscuro.</p></div>';
+  [["Socia", "Por Socia", m.socia], ["Tienda", "Por Punto de Venta", m.tienda], ["Canal", "Por Canal", m.canal]].forEach(function (g) {
+    var nombres = Object.keys(g[2]).sort(function (a, b) { return g[2][b].v - g[2][a].v; });
+    registros("metas").forEach(function (r) { if (r.mes === m.mes && r.amb === g[0] && !nombres.some(function (n) { return plano(n) === plano(r.nom); })) nombres.push(r.nom); });
+    h += '<div class="tarjeta" style="margin-bottom:16px"><h3>' + g[1] + '</h3>';
+    if (!nombres.length) { h += '<p class="nota">Sin ventas en este mes.</p></div>'; return; }
+    h += '<div style="overflow-x:auto"><table class="simple"><tr><th>' + g[0] + '</th><th class="num">Ventas</th><th class="num">Libros</th>' + (g[0] === "Socia" ? '<th class="num">Contactos</th>' : '') + '<th>Meta de Ventas</th></tr>';
+    nombres.forEach(function (n) {
+      var real = realDe(m, g[0], n, "Ventas (L.)"), meta = metaDe(m.mes, g[0], n, "Ventas (L.)");
+      h += '<tr><td>' + esc(n) + '</td><td class="num">' + L(real) + '</td><td class="num">' + realDe(m, g[0], n, "Libros") + '</td>' + (g[0] === "Socia" ? '<td class="num">' + realDe(m, "Socia", n, "Contactos") + '</td>' : '') + '<td>' + (meta ? L(meta.meta) + avance(real, meta) : '<span style="color:var(--suave)">sin meta</span>') + '</td></tr>';
+    });
+    h += '</table></div></div>';
+  });
+  var metas = registros("metas").filter(function (r) { return r.mes === m.mes; });
+  h += '<div class="tarjeta"><h3>Metas de ' + mesLargo(m.mes) + '</h3>' + zonaEdicion("metas", "Agregar Meta");
+  if (!metas.length) h += '<p class="nota">No hay metas definidas para este mes.</p>';
+  else {
+    h += '<div style="overflow-x:auto"><table class="simple"><tr><th>Ámbito</th><th>Indicador</th><th class="num">Meta</th><th class="num">Real</th><th></th></tr>';
+    metas.forEach(function (r) { var real = realDe(m, r.amb, r.nom, r.ind); h += '<tr><td>' + esc(r.amb + (r.nom ? ": " + r.nom : "")) + '</td><td>' + esc(r.ind) + '</td><td class="num">' + (r.ind === "Ventas (L.)" ? L(r.meta) : r.meta) + '</td><td class="num">' + (real === null ? "—" : (r.ind === "Ventas (L.)" ? L(real) : real) + avance(real, r)) + '</td><td><button class="btn claro chico" type="button" data-editar="metas|' + r.id + '">Editar</button></td></tr>'; });
+    h += '</table></div>';
+  }
+  return h + '</div>';
+}
+function subCampanas() {
+  var h = '<p class="intro">Una campaña une un grupo de clientas, un período y una meta. Mientras está activa, cada "Marcar Escrita" en ese grupo queda ligado a ella, y el CRM cuenta cuántas compraron en los ' + D.negocio.atribucion + ' días siguientes al mensaje.</p>' + zonaEdicion("campanas", "Nueva Campaña");
+  var lista = registros("campanas").slice().sort(function (a, b) { return b.ini.localeCompare(a.ini); });
+  if (!lista.length) h += '<div class="vacio">Todavía no hay campañas. Una buena primera: "Tarjeta Anterior por Vencer", hasta el 31/12.</div>';
+  lista.forEach(function (c) {
+    var r = D.negocio.campanas.filter(function (x) { return x.id === c.id; })[0] || { contactadas: 0, respondieron: 0, compraron: 0, ventas: 0 };
+    var enGrupo = c.gru && SEG[c.gru] ? deSegmento(c.gru).length : null;
+    h += '<div class="tarjeta" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>' + esc(c.nom) + ' <span class="chip' + (c.est === "Activa" ? " fuerte" : "") + '">' + esc(c.est) + '</span></h3><span><button class="btn claro chico" type="button" data-editar="campanas|' + c.id + '">Editar</button>' + (c.gru && SEG[c.gru] ? ' <button class="btn chico" type="button" data-ir="' + c.gru + '">Ir al Grupo</button>' : '') + '</span></div>' +
+      '<div class="nota" style="margin:2px 0 10px">' + fecha(c.ini) + ' al ' + fecha(c.fin) + (c.gru && SEG[c.gru] ? ' · grupo ' + SEG[c.gru].t + ' (' + enGrupo + ' hoy)' : '') + (c.res ? ' · responsable ' + esc(c.res) : '') + '</div><div class="rejilla" style="grid-template-columns:repeat(4,1fr)">' +
+      par("Contactadas", r.contactadas) + par("Respondieron", r.respondieron + (r.contactadas ? " · " + Math.round(r.respondieron / r.contactadas * 100) + "%" : "")) + par("Compraron", r.compraron + (r.contactadas ? " · " + Math.round(r.compraron / r.contactadas * 100) + "%" : "")) + par("Ventas Atribuidas", L(r.ventas)) + '</div>' +
+      (c.meta ? '<p class="nota">Meta: ' + L(c.meta) + avance(r.ventas, { meta: c.meta }) + '</p>' : '') + (c.nota ? '<p class="nota">' + esc(c.nota) + '</p>' : '') + '</div>';
+  });
+  return h;
+}
+function subCalendario() {
+  var items = [];
+  registros("calendario").forEach(function (r) { items.push({ ini: r.ini, fin: r.fin, t: r.tit, tipo: r.tip, nota: r.nota, id: r.id }); });
+  registros("campanas").forEach(function (c) { items.push({ ini: c.ini, fin: c.fin, t: c.nom, tipo: "Campaña", nota: c.est }); });
+  (D.eventos || []).forEach(function (e) { items.push({ ini: e.ini, fin: "", t: e.tit, tipo: "Evento del Sheet", nota: "" }); });
+  var limite = new Date(D.hoy); limite.setDate(limite.getDate() - 30); var desde = limite.toISOString().substring(0, 10);
+  items = items.filter(function (i) { return (i.fin || i.ini) >= desde; }).sort(function (a, b) { return a.ini.localeCompare(b.ini); });
+  var h = '<p class="intro">Temporadas, lanzamientos, campañas y eventos en una sola lista, desde hace 30 días en adelante. Los eventos vienen de la pestaña Eventos del Sheet; las campañas, de la pestaña anterior.</p>' + zonaEdicion("calendario", "Agregar Fecha");
+  if (!items.length) return h + '<div class="vacio">No hay nada programado.</div>';
+  var mesActual = "";
+  items.forEach(function (i) {
+    var mes = i.ini.substring(0, 7);
+    if (mes !== mesActual) { h += (mesActual ? '</div>' : '') + '<div class="tarjeta" style="margin-bottom:12px"><h3>' + mesLargo(mes) + '</h3>'; mesActual = mes; }
+    var ahora = i.ini <= D.hoy && (i.fin || i.ini) >= D.hoy;
+    h += '<div class="seg-linea" style="display:flex;justify-content:space-between;gap:10px"><div><b class="num">' + fechaCorta(i.ini) + (i.fin && i.fin !== i.ini ? " al " + fechaCorta(i.fin) : "") + '</b> · ' + esc(i.t) + ' <span class="chip' + (ahora ? " fuerte" : "") + '">' + esc(i.tipo) + (ahora ? " · en curso" : "") + '</span>' + (i.nota ? '<div class="nota" style="margin:2px 0 0">' + esc(i.nota) + '</div>' : '') + '</div>' + (i.id ? '<button class="btn claro chico" type="button" data-editar="calendario|' + i.id + '">Editar</button>' : '') + '</div>';
+  });
+  return h + '</div>';
+}
+
+// ---------- Recomendaciones ----------
+function claveLibro(t) { return plano(t).replace(/[^a-z0-9]+/g, " ").trim(); }
+function puntos(c, l, comprados) {
+  if (comprados[claveLibro(l.t)]) return 0;
+  var p = 0, autores = l.a.split("/").map(function (a) { return plano(a); });
+  c.m.aut.forEach(function (a) { if (autores.indexOf(plano(a[0])) !== -1) p += 3; });
+  if (c.x && c.x.gen && c.x.gen === l.g) p += 2;
+  c.m.gen.forEach(function (g, i) { if (g[0] === l.g) p += [2, 1.5, 1][i] || 0; });
+  return p;
+}
+function compradosDe(c) { var o = {}; c.l.forEach(function (l) { o[claveLibro(l.t)] = 1; }); return o; }
+function recomendacionesPara(c, cuantas) {
+  var comprados = compradosDe(c);
+  return ((D.negocio && D.negocio.libros) || []).map(function (l) { return { l: l, p: puntos(c, l, comprados) }; }).filter(function (x) { return x.p > 0; })
+    .sort(function (a, b) { return b.p - a.p || b.l.v - a.l.v || b.l.ing.localeCompare(a.l.ing); }).slice(0, cuantas).map(function (x) { return x.l; });
+}
+function seccionRecomendaciones(c) {
+  if (!c.l.length) return "";
+  var lista = recomendacionesPara(c, 4);
+  if (!lista.length) return "";
+  var texto = "¡Hola " + primerNombre(c.n) + "! Te escribimos de Letras & Vinos 🍷📚 Por lo que has leído con nosotras, creemos que te pueden gustar: " + lista.slice(0, 3).map(function (l) { return "«" + l.t + "»"; }).join(", ") + ". ¿Te contamos más de alguno?";
+  return '<section><h3>Para Recomendarle</h3><p class="nota" style="margin-top:0">Libros con existencias, de sus autores y géneros, que todavía no ha comprado.</p>' + lista.map(function (l) { return '<div class="seg-linea"><b>' + esc(l.t) + '</b><div class="nota" style="margin:0">' + esc([l.a, l.g, L(l.p), l.ub.join(", ")].filter(Boolean).join(" · ")) + '</div></div>'; }).join("") +
+    (noQuiere(c) ? '<p class="nota">No quiere recibir mensajes.</p>' : '<p style="margin:10px 0 0"><a class="btn chico" target="_blank" rel="noopener" href="' + esc(enlaceWa(c, texto)) + '">Recomendar por WhatsApp</a></p>') + '</section>';
+}
+function subRecomendar() {
+  var libros = D.negocio.libros.slice().sort(function (a, b) { return a.t.localeCompare(b.t, "es"); });
+  var h = '<p class="intro">Elegí un libro con existencias y el CRM ordena a las clientas con más probabilidad de quererlo: las que han comprado a ese autor o ese género y todavía no lo tienen. Sirve para mover libros de baja rotación y el Descuento del Mes.</p>' +
+    '<div class="filtros" style="grid-template-columns:1fr"><input type="search" id="buscaLibro" list="listaLibros" placeholder="Escribí el título del libro" value="' + esc(estado.libro) + '"><datalist id="listaLibros">' + libros.map(function (l) { return '<option value="' + esc(l.t) + '">'; }).join("") + '</datalist></div><div id="resultadoLibro">' + resultadoLibro() + '</div>';
+  return h;
+}
+function resultadoLibro() {
+  if (!estado.libro) return '<div class="vacio">Hay ' + D.negocio.libros.length + ' títulos con existencias.</div>';
+  var l = D.negocio.libros.filter(function (x) { return claveLibro(x.t) === claveLibro(estado.libro); })[0];
+  if (!l) return '<div class="vacio">Elegí un título de la lista.</div>';
+  var lista = D.clientas.filter(function (c) { return c.l.length && c.seg.indexOf("interna") === -1 && c.seg.indexOf("mayorista") === -1; })
+    .map(function (c) { return { c: c, p: puntos(c, l, compradosDe(c)) }; }).filter(function (x) { return x.p > 0; }).sort(function (a, b) { return b.p - a.p || (b.c.m.ult || "").localeCompare(a.c.m.ult || ""); }).slice(0, 40);
+  var h = '<div class="que-hacer"><b>' + esc(l.t) + '</b> · ' + esc([l.a, l.g, L(l.p)].filter(Boolean).join(" · ")) + ' · ' + l.d + ' en existencia (' + esc(l.ub.join(", ")) + ') · ' + l.v + ' vendidos</div><div class="herramientas"><span class="cuenta">' + lista.length + ' clientas afines</span></div><div class="filas">';
+  if (!lista.length) h += '<div class="vacio">Ninguna clienta ha comprado ese autor o ese género todavía.</div>';
+  lista.forEach(function (x) {
+    var c = x.c, texto = "¡Hola " + primerNombre(c.n) + "! Te escribimos de Letras & Vinos 🍷📚 Tenemos «" + l.t + "»" + (l.a ? " de " + l.a.split("/")[0].trim() : "") + " y pensamos en vos. ¿Te contamos más?";
+    h += '<div class="clienta"><div class="quien"><b>' + esc(c.n) + '</b><span class="num">' + cel(c.c) + '</span></div><div class="dato">' + esc(c.m.gen.map(function (g) { return g[0]; }).join(", ")) + ' · última compra <strong>' + hace(c.m.dias) + '</strong></div><div class="botones">' +
+      (noQuiere(c) ? '<span class="chip">No quiere mensajes</span>' : '<a class="btn chico" target="_blank" rel="noopener" href="' + esc(enlaceWa(c, texto)) + '">WhatsApp</a>') + '<button class="btn claro chico" type="button" data-ficha="' + c.c + '">Ver Ficha</button></div></div>';
+  });
+  return h + '</div>';
+}
+
+// ---------- Eventos de la tercera parte ----------
+document.addEventListener("submit", function (e) {
+  var f = e.target; if (!f.dataset || (f.dataset.form !== "registro" && f.dataset.form !== "visita")) return;
+  e.preventDefault();
+  var aviso = f.querySelector(".aviso-form"), boton = f.querySelector("button[type=submit]");
+  var fallo = function (err) { boton.disabled = false; aviso.textContent = err.message; };
+  boton.disabled = true; aviso.textContent = "Guardando…";
+  if (f.dataset.form === "visita") {
+    var fp = f.elements.fprox.value;
+    enviar("crm_seguimiento", { tipo: "Tienda", tienda: f.dataset.tienda, canal: f.elements.canal.value, nota: f.elements.nota.value.trim(), proxima: f.elements.proxima.value.trim(), fechaProxima: fp ? fp.split("-").reverse().join("/") : "", nombre: estado.tienda })
+      .then(function (r) { anotarLocal(r.s); (D.seguimiento.tiendas || (D.seguimiento.tiendas = [])).unshift(r.s); avisoVista = "Visita anotada."; pintar(); }, fallo);
+    return;
+  }
+  var tabla = f.dataset.tabla, campos = {};
+  D.esquema[tabla].forEach(function (c) {
+    var v = f.elements[c.k] ? f.elements[c.k].value.trim() : "";
+    campos[c.k] = c.t === "fecha" && v ? v.split("-").reverse().join("/") : v;
+  });
+  enviar("crm_registro_guardar", { tabla: tabla, id: f.dataset.id, campos: campos }).then(function (r) {
+    editando = null; avisoVista = NOMBRE_TABLA[tabla] + " guardada.";
+    if (tabla === "tiendas" && estado.tienda) estado.tienda = r.r.nom;
+    if (DEMO) { D.registros[tabla] = registros(tabla).filter(function (x) { return x.id !== r.r.id; }).concat([r.r]); pintar(); } else entrar(false);
+  }, fallo);
+});
+document.addEventListener("click", function (e) {
+  var t = e.target;
+  if (t.dataset.sub) { estado.sub = t.dataset.sub; editando = null; pintar(); }
+  else if (t.dataset.nuevo) { editando = { tabla: t.dataset.nuevo, id: "", inicial: t.dataset.nuevo === "metas" ? { mes: estado.mes || D.hoy.substring(0, 7) } : t.dataset.nuevo === "campanas" ? { est: "Planificada" } : {} }; pintar(); }
+  else if (t.dataset.editar) { var p = t.dataset.editar.split("|"); editando = { tabla: p[0], id: p[1] }; pintar(); window.scrollTo(0, 0); }
+  else if (t.dataset.cancelar) { editando = null; pintar(); }
+  else if (t.dataset.tienda !== undefined && t.hasAttribute("data-tienda") && t.tagName === "BUTTON") { estado.tienda = t.dataset.tienda; editando = null; pintar(); window.scrollTo(0, 0); }
+  else if (t.dataset.borrar) {
+    if (t.dataset.seguro !== "1") { t.dataset.seguro = "1"; t.textContent = "¿Borrar? Tocá de Nuevo"; return; }
+    var b = t.dataset.borrar.split("|");
+    enviar("crm_registro_borrar", { tabla: b[0], id: b[1] }).then(function () { editando = null; avisoVista = "Borrado."; if (b[0] === "tiendas") estado.tienda = "";
+      if (DEMO) { D.registros[b[0]] = registros(b[0]).filter(function (x) { return x.id !== b[1]; }); pintar(); } else entrar(false); }, function (err) { avisoVista = err.message; pintar(); });
+  }
+});
+document.addEventListener("change", function (e) {
+  if (e.target.id === "mesTablero") { estado.mes = e.target.value; pintar(); }
+  if (e.target.id === "buscaLibro") { estado.libro = e.target.value; document.getElementById("resultadoLibro").innerHTML = resultadoLibro(); }
 });
 
 // ---------- Arranque ----------
