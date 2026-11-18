@@ -927,7 +927,9 @@ const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbz0dFtc_8wt70-J
 // queda oculto en el carrito y en el pie de página. Para activarlo,
 // reemplaza el texto de abajo (entre comillas) por tu Link de Pago real
 // de TodoPago — no hay que tocar nada más en el archivo.
-const URL_PAGO = "PENDIENTE_LINK_DE_PAGO_TODOPAGO";
+// Link de pago TodoPago de la tienda en línea ("Pago pedidos en tienda en
+// línea", monto abierto: la clienta escribe el monto).
+const URL_PAGO = "https://linkdepagos.todopago.hn/#/link-pago/fsulgv";
 
 const grid = document.getElementById("grid");
 const portada = document.getElementById("portada");
@@ -1420,7 +1422,9 @@ function renderCarrito(){
   } else {
     btnPagarCarrito.style.display = "block";
     btnPagarCarrito.href = URL_PAGO;
-    ayudaPago.textContent = "Escríbenos por WhatsApp para confirmar el total antes de pagar, así nos aseguramos de que todo siga disponible.";
+    ayudaPago.textContent = `1) Envíanos tu pedido por WhatsApp para confirmar que todo esté disponible. ` +
+      `2) Luego paga con TodoPago: escribe el monto exacto (${formatoLempiras(totalCarrito())} más el envío, si aplica) ` +
+      `y en «Comentario» tu nombre.`;
   }
 }
 
